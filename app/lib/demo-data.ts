@@ -1,0 +1,157 @@
+import type { ComponentRecord, CveRecord } from "./types";
+
+const now = "2026-09-26T09:00:00.000Z";
+
+const components: ComponentRecord[] = [
+  {
+    purl: "pkg:maven/com.thoughtworks.xstream/xstream@1.4.20",
+    cpe: "cpe:2.3:a:thoughtworks:xstream",
+    type: "maven",
+    vendor: "thoughtworks",
+    name: "xstream",
+    version: "1.4.20",
+    license: "BSD-3-Clause",
+    description: "XML serialization library for Java.",
+    repository: "https://github.com/x-stream/xstream",
+    language: "Java",
+    recordTime: now,
+    sourceMissing: false,
+  },
+  {
+    purl: "pkg:maven/commons-fileupload/commons-fileupload@1.5",
+    cpe: "cpe:2.3:a:apache:commons_fileupload",
+    type: "maven",
+    vendor: "apache",
+    name: "commons-fileupload",
+    version: "1.5",
+    license: "Apache-2.0",
+    description: "File upload utilities for servlet applications.",
+    repository: "https://github.com/apache/commons-fileupload",
+    language: "Java",
+    recordTime: now,
+    sourceMissing: false,
+  },
+  {
+    purl: "pkg:maven/io.netty/netty-codec-http2@4.1.100.Final",
+    cpe: "cpe:2.3:a:netty:netty",
+    type: "maven",
+    vendor: "netty",
+    name: "netty-codec-http2",
+    version: "4.1.100.Final",
+    license: "Apache-2.0",
+    description: "HTTP/2 codec for Netty.",
+    repository: "https://github.com/netty/netty",
+    language: "Java",
+    recordTime: now,
+    sourceMissing: false,
+  },
+  {
+    purl: "pkg:maven/org.springframework/spring-web@6.1.5",
+    cpe: "cpe:2.3:a:vmware:spring_framework",
+    type: "maven",
+    vendor: "vmware",
+    name: "spring-web",
+    version: "6.1.5",
+    license: "Apache-2.0",
+    description: "Spring web infrastructure.",
+    repository: "https://github.com/spring-projects/spring-framework",
+    language: "Java",
+    recordTime: now,
+    sourceMissing: false,
+  },
+  {
+    purl: "pkg:npm/express@4.18.3",
+    cpe: "cpe:2.3:a:expressjs:express",
+    type: "npm",
+    vendor: "expressjs",
+    name: "express",
+    version: "4.18.3",
+    license: "MIT",
+    description: "Fast, unopinionated web framework for Node.js.",
+    repository: "https://github.com/expressjs/express",
+    language: "JavaScript",
+    recordTime: now,
+    sourceMissing: false,
+  },
+  {
+    purl: "pkg:pypi/requests@2.31.0",
+    cpe: "cpe:2.3:a:python:requests",
+    type: "pypi",
+    vendor: "python",
+    name: "requests",
+    version: "2.31.0",
+    license: "Apache-2.0",
+    description: "HTTP library for Python.",
+    repository: "https://github.com/psf/requests",
+    language: "Python",
+    recordTime: now,
+    sourceMissing: false,
+  },
+];
+
+const source = [
+  ["CVE-2026-9999", "Remote code execution in XStream via untrusted XML deserialization", "com.thoughtworks.xstream", "CRITICAL", 9.8, "PENDING"],
+  ["CVE-2026-9998", "Path traversal in Apache Commons FileUpload", "commons-fileupload", "HIGH", 8.8, "PENDING"],
+  ["CVE-2026-9997", "HTTP/2 rapid reset allows denial of service", "io.netty", "HIGH", 8.1, "CONFIRMED"],
+  ["CVE-2026-9996", "Improper input validation in gson leads to denial of service", "com.google.code.gson", "HIGH", 7.5, "DEFERRED"],
+  ["CVE-2026-9995", "Information disclosure in Jackson Databind", "com.fasterxml.jackson.core", "MEDIUM", 6.1, "PENDING"],
+  ["CVE-2026-9994", "Regular expression denial of service in commons-text", "org.apache.commons", "MEDIUM", 6.0, "FALSE_POSITIVE"],
+  ["CVE-2026-9993", "SSRF in Apache HttpClient", "org.apache.httpcomponents", "MEDIUM", 5.9, "PENDING"],
+  ["CVE-2026-9992", "Insufficient validation in Apache Commons FileUpload", "commons-fileupload", "LOW", 3.4, "FALSE_POSITIVE"],
+  ["CVE-2026-9991", "Exposure of sensitive information in log messages", "ch.qos.logback", "LOW", 3.1, "CONFIRMED"],
+  ["CVE-2026-9990", "Improper certificate validation in Apache HttpClient", "org.apache.httpcomponents", "LOW", 2.7, "CONFIRMED"],
+  ["CVE-2026-9989", "Prototype pollution in express middleware", "express", "HIGH", 8.2, "PENDING"],
+  ["CVE-2026-9988", "Redirect handling issue in Python requests", "requests", "MEDIUM", 5.4, "DEFERRED"],
+] as const;
+
+export const demoComponents = components;
+
+export const demoCves: CveRecord[] = source.map(([cveId, title, packageName, severity, cvss, status], index) => {
+  const component = components.find((item) => item.name === packageName || item.purl.includes(packageName));
+  const description = `${title}. This seeded record is a realistic local demonstration of the source evidence and triage workflow.`;
+  const event: CveRecord["history"][number] = {
+    id: `history-${index + 1}`,
+    action: "STATUS_CHANGED",
+    actorEmail: "admin@argus.local",
+    targetType: "CVE",
+    targetId: cveId,
+    cveId,
+    metadata: { status },
+    createdAt: `2026-09-${String(26 - (index % 8)).padStart(2, "0")}T08:30:00.000Z`,
+  };
+
+  return {
+    id: `demo-cve-${index + 1}`,
+    cveId,
+    sourceId: cveId,
+    sourceName: "NVD",
+    sourcePublishDate: `2026-05-${String(28 - (index % 12)).padStart(2, "0")}T00:00:00.000Z`,
+    sourceUpdateDate: `2026-06-${String(1 + (index % 10)).padStart(2, "0")}T00:00:00.000Z`,
+    sourceLink: `https://nvd.nist.gov/vuln/detail/${cveId}`,
+    title,
+    description,
+    affectedVersions: ["< 1.4.21"],
+    cvssScoreV4: null,
+    cvssScoreV3: cvss,
+    cvssScoreV2: null,
+    severity,
+    type: "CWE / source advisory",
+    cweIds: [index % 2 === 0 ? "CWE-20" : "CWE-502"],
+    triageStatus: status,
+    sourceMissing: false,
+    candidates: component
+      ? [
+          {
+            id: `candidate-${index + 1}`,
+            componentPurl: component.purl,
+            componentName: `${component.vendor ?? ""} ${component.name}`.trim(),
+            cpe: component.cpe,
+            matchReason: "CPE vendor/name prefix match",
+            status: index % 4 === 0 ? "CONFIRMED" : "CANDIDATE",
+            confidence: index % 4 === 0 ? 0.92 : 0.68,
+          },
+        ]
+      : [],
+    history: [event],
+  };
+});

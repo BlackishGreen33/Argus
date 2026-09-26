@@ -1,0 +1,26 @@
+project_id = "argus"
+
+[api]
+enabled = true
+port = 54321
+
+[db]
+port = 54322
+major_version = 17
+
+[studio]
+enabled = true
+port = 54323
+
+[auth]
+enabled = true
+site_url = "http://localhost:3000"
+
+[auth.email]
+enabled = true
+
+[auth.external.google]
+enabled = false
+
+[auth.external.github]
+enabled = false

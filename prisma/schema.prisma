@@ -1,0 +1,149 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../app/generated/prisma"
+}
+
+datasource db {
+  provider  = "postgresql"
+}
+
+enum TriageStatus {
+  PENDING
+  CONFIRMED
+  DEFERRED
+  FALSE_POSITIVE
+}
+
+enum CandidateStatus {
+  CANDIDATE
+  CONFIRMED
+  REJECTED
+}
+
+enum ImportStatus {
+  QUEUED
+  RUNNING
+  PREVIEW_READY
+  MERGING
+  SUCCEEDED
+  FAILED
+}
+
+model Cve {
+  id               String                    @id @default(cuid())
+  cveId            String                    @unique
+  sourceId         String                    @unique
+  sourceName       String?
+  sourcePublishDate DateTime?
+  sourceUpdateDate DateTime?
+  sourceLink       String?
+  title            String?
+  description      String?
+  affectedVersions Json?
+  cvssScoreV4      Float?
+  cvssScoreV3      Float?
+  cvssScoreV2      Float?
+  severity         String?
+  type             String?
+  cweIds           Json?
+  triageStatus     TriageStatus              @default(PENDING)
+  sourceMissing    Boolean                   @default(false)
+  createdAt        DateTime                  @default(now())
+  updatedAt        DateTime                  @updatedAt
+  candidates       CpeCandidate[]
+  auditEvents      AuditEvent[]
+
+  @@index([severity])
+  @@index([triageStatus])
+  @@index([sourceUpdateDate])
+}
+
+model Component {
+  purl             String                    @id
+  cpe              String?
+  type             String?
+  vendor           String?
+  name             String
+  version          String
+  license          String?
+  description      String?
+  repository       String?
+  publishDate      DateTime?
+  language         String?
+  recordTime       DateTime?
+  sourceMissing    Boolean                   @default(false)
+  createdAt        DateTime                  @default(now())
+  updatedAt        DateTime                  @updatedAt
+  candidates       CpeCandidate[]
+  auditEvents      AuditEvent[]
+
+  @@index([name])
+  @@index([type])
+  @@index([cpe])
+}
+
+model CpeCandidate {
+  id             String          @id @default(cuid())
+  cveId          String
+  componentPurl  String
+  matchReason    String
+  status         CandidateStatus @default(CANDIDATE)
+  confidence     Float?
+  confirmedBy    String?
+  confirmedAt    DateTime?
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+  cve            Cve             @relation(fields: [cveId], references: [id], onDelete: Cascade)
+  component      Component       @relation(fields: [componentPurl], references: [purl], onDelete: Cascade)
+
+  @@unique([cveId, componentPurl])
+  @@index([status])
+}
+
+model AuditEvent {
+  id             String     @id @default(cuid())
+  action         String
+  actorEmail     String?
+  targetType     String?
+  targetId       String?
+  cveId          String?
+  componentPurl  String?
+  metadata       Json?
+  createdAt      DateTime   @default(now())
+  cve            Cve?       @relation(fields: [cveId], references: [id], onDelete: SetNull)
+  component      Component? @relation(fields: [componentPurl], references: [purl], onDelete: SetNull)
+
+  @@index([action, createdAt])
+  @@index([cveId, createdAt])
+  @@index([componentPurl, createdAt])
+}
+
+model ImportJob {
+  id             String       @id @default(cuid())
+  dataset        String       @default("comp.sql + vul.sql")
+  status         ImportStatus @default(QUEUED)
+  sourceChecksum String?
+  summary        Json?
+  sampleDiffs    Json?
+  errorMessage   String?
+  retryCount     Int          @default(0)
+  createdBy      String?
+  createdAt      DateTime     @default(now())
+  startedAt      DateTime?
+  finishedAt     DateTime?
+  stageRows      ImportStageRow[]
+
+  @@index([status, createdAt])
+}
+
+model ImportStageRow {
+  id          String   @id @default(cuid())
+  importJobId String
+  entityType  String
+  stableKey   String
+  payload     Json
+  createdAt   DateTime @default(now())
+  importJob   ImportJob @relation(fields: [importJobId], references: [id], onDelete: Cascade)
+
+  @@unique([importJobId, entityType, stableKey])
+}
