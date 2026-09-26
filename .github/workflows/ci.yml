@@ -25,6 +25,25 @@ jobs:
       - run: pnpm prisma validate
       - run: pnpm build
       - run: pnpm exec playwright install --with-deps chromium
+      - name: Start production server
+        run: |
+          nohup pnpm start > /tmp/argus-next.log 2>&1 &
+          echo $! > /tmp/argus-next.pid
+          for attempt in {1..30}; do
+            if curl --fail --silent http://127.0.0.1:3000/api/health > /dev/null; then
+              exit 0
+            fi
+            sleep 1
+          done
+          cat /tmp/argus-next.log
+          exit 1
       - run: pnpm exec playwright test --global-timeout=120000 --reporter=line
         env:
           DEBUG: pw:browser,pw:test,pw:worker,pw:webserver
+      - name: Stop production server
+        if: always()
+        run: |
+          if test -f /tmp/argus-next.pid; then
+            kill "$(cat /tmp/argus-next.pid)" || true
+          fi
+          pkill -f "next start" || true
