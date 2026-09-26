@@ -11,3 +11,4 @@ app/generated/prisma/
 tsconfig.tsbuildinfo
 /实践作业一说明.md
 /draft_*_folder/
+.vercel
