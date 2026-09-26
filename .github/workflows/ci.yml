@@ -23,6 +23,8 @@ jobs:
       - run: pnpm typecheck
       - run: pnpm test
       - run: pnpm exec playwright install --with-deps chromium
-      - run: pnpm test:e2e
+      - run: pnpm exec playwright test --global-timeout=120000 --reporter=line
+        env:
+          DEBUG: pw:browser,pw:test,pw:worker,pw:webserver
       - run: pnpm prisma validate
       - run: pnpm build
