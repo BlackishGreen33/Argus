@@ -38,8 +38,6 @@ jobs:
           cat /tmp/argus-next.log
           exit 1
       - run: pnpm exec playwright test --global-timeout=120000 --reporter=line
-        env:
-          DEBUG: pw:browser,pw:test,pw:worker,pw:webserver
       - name: Stop production server
         if: always()
         run: |

@@ -2,7 +2,7 @@
   "name": "argus",
   "version": "0.1.0",
   "private": true,
-  "description": "Argus vulnerability triage workbench for the Web development assignment.",
+  "description": "Vulnerability triage workbench for DevSecOps and security review.",
   "packageManager": "pnpm@12.6.0",
   "engines": {
     "node": ">=24 <25"
@@ -17,7 +17,7 @@
     "test:e2e": "playwright test",
     "db:generate": "prisma generate",
     "db:migrate": "prisma migrate deploy",
-    "db:seed": "tsx prisma/seed.ts",
+    "db:seed": "node --env-file-if-exists=.env.local --import tsx prisma/seed.ts",
     "check": "pnpm lint && pnpm typecheck && pnpm test"
   },
   "dependencies": {
