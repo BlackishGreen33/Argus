@@ -1,6 +1,7 @@
 "use client";
 
 import { AlertTriangle, Check, FileSearch, FilterX, Lock, Search } from "lucide-react";
+import type React from "react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -31,38 +32,12 @@ import { severityLabels, statusLabels } from "@/utils/labels";
 
 const PAGE_SIZES = [10, 20, 50];
 
-export function TriagePage({
-  cves,
-  selectedIds,
-  setSelectedIds,
-  loading,
-  error,
-  pageTitle,
-  pageSubtitle,
-  localQuery,
-  setLocalQuery,
-  severityFilter,
-  statusFilter,
-  ecosystemFilter,
-  onSeverityChange,
-  onStatusFilterChange,
-  onEcosystemChange,
-  onClearFilters,
-  onToast,
-  openCve,
-  onBatchStatus,
-  isAdmin,
-  onLogin,
-  page,
-  pageSize,
-  total,
-  onPageChange,
-  onPageSizeChange,
-}: {
+interface TriagePageProps {
   cves: CveRecord[];
   selectedIds: string[];
   setSelectedIds: (ids: string[]) => void;
   loading: boolean;
+  authPending: boolean;
   error: string | null;
   pageTitle: string;
   pageSubtitle: string;
@@ -85,14 +60,40 @@ export function TriagePage({
   total: number;
   onPageChange: (page: number) => void;
   onPageSizeChange: (pageSize: number) => void;
-}) {
+}
+
+export const TriagePage: React.FC<TriagePageProps> = ({
+  cves,
+  selectedIds,
+  setSelectedIds,
+  loading,
+  authPending,
+  error,
+  pageTitle,
+  pageSubtitle,
+  localQuery,
+  setLocalQuery,
+  severityFilter,
+  statusFilter,
+  ecosystemFilter,
+  onSeverityChange,
+  onStatusFilterChange,
+  onEcosystemChange,
+  onClearFilters,
+  onToast,
+  openCve,
+  onBatchStatus,
+  isAdmin,
+  onLogin,
+  page,
+  pageSize,
+  total,
+  onPageChange,
+  onPageSizeChange,
+}) => {
   const allSelected = cves.length > 0 && cves.every((item) => selectedIds.includes(item.cveId));
   const pageCount = Math.max(1, Math.ceil(total / pageSize));
   const pages = Array.from({ length: Math.min(pageCount, 5) }, (_, index) => index + 1);
-  const statusValue = statusFilter || "all";
-  const severityValue = severityFilter || "all";
-  const ecosystemValue = ecosystemFilter || "all";
-
   const toggleRow = (cveId: string, checked: boolean) => {
     setSelectedIds(checked ? [...new Set([...selectedIds, cveId])] : selectedIds.filter((id) => id !== cveId));
   };
@@ -118,36 +119,33 @@ export function TriagePage({
             aria-label="筛选当前漏洞列表"
           />
         </div>
-        <Select value={severityValue} onValueChange={(value) => onSeverityChange(value === "all" ? "" : value)}>
+        <Select value={severityFilter || undefined} placeholder="严重度" onValueChange={onSeverityChange}>
           <SelectTrigger className="filter-select" aria-label="严重度">
-            <SelectValue placeholder="严重度" />
+            <SelectValue />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">严重度</SelectItem>
             <SelectItem value="CRITICAL">严重</SelectItem>
             <SelectItem value="HIGH">高</SelectItem>
             <SelectItem value="MEDIUM">中</SelectItem>
             <SelectItem value="LOW">低</SelectItem>
           </SelectContent>
         </Select>
-        <Select value={ecosystemValue} onValueChange={(value) => onEcosystemChange(value === "all" ? "" : value)}>
+        <Select value={ecosystemFilter || undefined} placeholder="生态系" onValueChange={onEcosystemChange}>
           <SelectTrigger className="filter-select" aria-label="生态系">
-            <SelectValue placeholder="生态系" />
+            <SelectValue />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">生态系</SelectItem>
             <SelectItem value="maven">Maven</SelectItem>
             <SelectItem value="npm">npm</SelectItem>
             <SelectItem value="pypi">PyPI</SelectItem>
             <SelectItem value="golang">Go</SelectItem>
           </SelectContent>
         </Select>
-        <Select value={statusValue} onValueChange={(value) => onStatusFilterChange(value === "all" ? "" : value)}>
+        <Select value={statusFilter || undefined} placeholder="状态" onValueChange={onStatusFilterChange}>
           <SelectTrigger className="filter-select" aria-label="状态">
-            <SelectValue placeholder="状态" />
+            <SelectValue />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">状态</SelectItem>
             <SelectItem value="PENDING">待处理</SelectItem>
             <SelectItem value="CONFIRMED">已确认</SelectItem>
             <SelectItem value="DEFERRED">已延后</SelectItem>
@@ -159,7 +157,7 @@ export function TriagePage({
         </Button>
       </div>
 
-      {!isAdmin && (
+      {!authPending && !isAdmin && (
         <div className="batch-bar">
           <Lock size={15} aria-hidden="true" />
           <span>当前为访客浏览模式，登录后可修改、批量处理与删除。</span>
@@ -372,4 +370,4 @@ export function TriagePage({
       </div>
     </>
   );
-}
+};

@@ -8,6 +8,7 @@ import {
   ListBoxItem,
   Popover,
   Select as AriaSelect,
+  SelectStateContext,
   SelectValue as AriaSelectValue,
 } from "react-aria-components";
 
@@ -22,7 +23,7 @@ function Select({ value, onValueChange, ...props }: SelectProps) {
   return (
     <AriaSelect
       data-slot="select"
-      selectedKey={value}
+      selectedKey={value ?? null}
       onSelectionChange={(key) => {
         if (key !== null) onValueChange?.(String(key));
       }}
@@ -66,8 +67,11 @@ function SelectTrigger({
 }
 
 function SelectContent({ className, children, ...props }: React.ComponentProps<typeof Popover>) {
+  const state = React.useContext(SelectStateContext);
+
   return (
     <Popover
+      isOpen={state?.isOpen}
       data-slot="select-content"
       placement="bottom start"
       offset={5}

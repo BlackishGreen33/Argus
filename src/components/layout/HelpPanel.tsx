@@ -1,6 +1,7 @@
 "use client";
 
 import { ArrowUpRight, BookOpen, Keyboard } from "lucide-react";
+import type React from "react";
 
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
@@ -8,7 +9,12 @@ import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "
 
 const REPO_URL = "https://github.com/BlackishGreen33/Argus";
 
-export function HelpPanel({ open, onOpenChange }: { open: boolean; onOpenChange: (open: boolean) => void }) {
+interface HelpPanelProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+}
+
+export const HelpPanel: React.FC<HelpPanelProps> = ({ open, onOpenChange }) => {
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent side="right" className="w-[min(430px,100vw)]">
@@ -59,4 +65,4 @@ export function HelpPanel({ open, onOpenChange }: { open: boolean; onOpenChange:
       </SheetContent>
     </Sheet>
   );
-}
+};

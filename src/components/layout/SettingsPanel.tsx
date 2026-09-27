@@ -1,5 +1,7 @@
 "use client";
 
+import type React from "react";
+
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Separator } from "@/components/ui/separator";
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet";
@@ -13,21 +15,23 @@ const themes = [
 
 export type ThemeAccent = (typeof themes)[number]["id"];
 
-export function SettingsPanel({
-  open,
-  onOpenChange,
-  theme,
-  onThemeChange,
-  collapsed,
-  onCollapsedChange,
-}: {
+interface SettingsPanelProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   theme: ThemeAccent;
   onThemeChange: (theme: ThemeAccent) => void;
   collapsed: boolean;
   onCollapsedChange: (collapsed: boolean) => void;
-}) {
+}
+
+export const SettingsPanel: React.FC<SettingsPanelProps> = ({
+  open,
+  onOpenChange,
+  theme,
+  onThemeChange,
+  collapsed,
+  onCollapsedChange,
+}) => {
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent side="right" className="w-[min(390px,100vw)]">
@@ -59,12 +63,17 @@ export function SettingsPanel({
           <Separator />
           <div className="settings-row">
             <div>
-              <strong>折叠侧栏</strong>
-              <p>只显示导航图标，保留更多列表空间。</p>
+              <strong>侧栏显示</strong>
+              <p>折叠后只显示导航图标，展开后显示完整导航。</p>
             </div>
             <div className="settings-toggle">
-              <Switch checked={collapsed} onCheckedChange={onCollapsedChange} aria-label="折叠侧栏" />
-              <span>{collapsed ? "已折叠" : "展开"}</span>
+              <Switch
+                checked={collapsed}
+                onCheckedChange={onCollapsedChange}
+                aria-label={collapsed ? "展开侧栏" : "折叠侧栏"}
+                title={collapsed ? "展开侧栏" : "折叠侧栏"}
+              />
+              <span>{collapsed ? "已折叠" : "已展开"}</span>
             </div>
           </div>
           <div className="settings-hint">
@@ -74,4 +83,4 @@ export function SettingsPanel({
       </SheetContent>
     </Sheet>
   );
-}
+};

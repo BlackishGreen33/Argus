@@ -1,6 +1,7 @@
 "use client";
 
 import { FileSearch, PackageSearch } from "lucide-react";
+import type React from "react";
 
 import {
   Command,
@@ -13,19 +14,22 @@ import {
   CommandShortcut,
 } from "@/components/ui/command";
 
-export function CommandPalette({
-  open,
-  query,
-  results,
-  onQueryChange,
-  onClose,
-}: {
+interface CommandPaletteResult {
+  type: string;
+  label: string;
+  sublabel: string;
+  onClick: () => void;
+}
+
+interface CommandPaletteProps {
   open: boolean;
   query: string;
-  results: Array<{ type: string; label: string; sublabel: string; onClick: () => void }>;
+  results: CommandPaletteResult[];
   onQueryChange: (query: string) => void;
   onClose: () => void;
-}) {
+}
+
+export const CommandPalette: React.FC<CommandPaletteProps> = ({ open, query, results, onQueryChange, onClose }) => {
   return (
     <CommandDialog
       open={open}
@@ -57,4 +61,4 @@ export function CommandPalette({
       </Command>
     </CommandDialog>
   );
-}
+};

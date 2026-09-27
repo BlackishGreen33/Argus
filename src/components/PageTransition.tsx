@@ -1,9 +1,15 @@
 "use client";
 
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
+import type React from "react";
 import type { ReactNode } from "react";
 
-export function PageTransition({ page, children }: { page: string; children: ReactNode }) {
+interface PageTransitionProps {
+  page: string;
+  children: ReactNode;
+}
+
+export const PageTransition: React.FC<PageTransitionProps> = ({ page, children }) => {
   const reduced = useReducedMotion() ?? false;
 
   return (
@@ -19,4 +25,4 @@ export function PageTransition({ page, children }: { page: string; children: Rea
       </motion.div>
     </AnimatePresence>
   );
-}
+};

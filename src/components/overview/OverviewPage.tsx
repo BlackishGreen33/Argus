@@ -1,28 +1,32 @@
 "use client";
 
 import { Activity, Check, RotateCw } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import type { ImportJob, OverviewData } from "@/types/domain";
 import { request } from "@/utils/http";
 import { importStatusLabel, severityLabels } from "@/utils/labels";
 
-export function OverviewPage({
-  data,
-  loading,
-  isAdmin,
-  onLogin,
-  onToast,
-  onRefresh,
-}: {
+interface OverviewPageProps {
   data: OverviewData | null;
   loading: boolean;
+  authPending: boolean;
   isAdmin: boolean;
   onLogin: () => void;
   onToast: (message: string) => void;
   onRefresh: () => Promise<void>;
-}) {
+}
+
+export const OverviewPage: React.FC<OverviewPageProps> = ({
+  data,
+  loading,
+  authPending,
+  isAdmin,
+  onLogin,
+  onToast,
+  onRefresh,
+}) => {
   const [job, setJob] = useState<ImportJob | null>(data?.latestImport ?? null);
   const [working, setWorking] = useState(false);
   const timerRef = useRef<number | null>(null);
@@ -36,6 +40,7 @@ export function OverviewPage({
     [],
   );
   const startImport = async () => {
+    if (authPending) return;
     if (!isAdmin) return onLogin();
     setWorking(true);
     try {
@@ -65,6 +70,7 @@ export function OverviewPage({
     }
   };
   const merge = async () => {
+    if (authPending) return;
     if (!job || !isAdmin) return onLogin();
     try {
       const response = await request<{ data: ImportJob }>(`/api/imports/${job.id}/merge`, { method: "POST" });
@@ -76,6 +82,7 @@ export function OverviewPage({
     }
   };
   const retry = async () => {
+    if (authPending) return;
     if (!job || !isAdmin) return onLogin();
     try {
       const response = await request<{ data: ImportJob }>(`/api/imports/${job.id}/retry`, { method: "POST" });
@@ -95,9 +102,9 @@ export function OverviewPage({
           <h1 className="serif">Overview</h1>
           <p>让风险状态保持可见、可解释、可复现。</p>
         </div>
-        <Button onClick={startImport} disabled={working}>
+        <Button onClick={startImport} disabled={working || authPending}>
           {working ? <RotateCw size={15} className="spin" /> : <RotateCw size={15} />}{" "}
-          {working ? "刷新中…" : "刷新内建数据"}
+          {authPending ? "验证登录状态…" : working ? "刷新中…" : "刷新内建数据"}
         </Button>
       </div>
       {loading && !data ? (
@@ -163,7 +170,7 @@ export function OverviewPage({
                     {job?.retryCount ? ` · 已重试 ${job.retryCount} 次` : ""}
                   </div>
                 </div>
-                <Button variant="outline" onClick={startImport} disabled={working}>
+                <Button variant="outline" onClick={startImport} disabled={working || authPending}>
                   <RotateCw size={14} /> 重新预览
                 </Button>
               </div>
@@ -198,7 +205,7 @@ export function OverviewPage({
               {job?.status === "FAILED" && (
                 <div style={{ marginTop: 14, display: "flex", alignItems: "center", gap: 10 }}>
                   <span className="cell-muted">{job.errorMessage ?? "导入失败"}</span>
-                  <Button variant="outline" size="sm" onClick={retry}>
+                  <Button variant="outline" size="sm" onClick={retry} disabled={authPending}>
                     重试
                   </Button>
                 </div>
@@ -209,9 +216,15 @@ export function OverviewPage({
       )}
     </>
   );
+};
+
+interface MetricProps {
+  label: string;
+  value: string | number;
+  note: string;
 }
 
-function Metric({ label, value, note }: { label: string; value: string | number; note: string }) {
+const Metric: React.FC<MetricProps> = ({ label, value, note }) => {
   return (
     <div className="metric">
       <div className="metric-label">{label}</div>
@@ -219,4 +232,4 @@ function Metric({ label, value, note }: { label: string; value: string | number;
       <div className="metric-note">{note}</div>
     </div>
   );
-}
+};

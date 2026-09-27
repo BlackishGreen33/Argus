@@ -1,5 +1,11 @@
+import type React from "react";
+
 import { ArgusApp } from "@/components/ArgusApp";
 
-export default function Home() {
+type HomeProps = Record<string, never>;
+
+const Home: React.FC<HomeProps> = () => {
   return <ArgusApp />;
-}
+};
+
+export default Home;

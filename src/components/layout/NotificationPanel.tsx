@@ -1,7 +1,7 @@
 "use client";
 
 import { Bell, CheckCircle2, Clock3, RefreshCw, ShieldAlert, Trash2 } from "lucide-react";
-import { useEffect, useState } from "react";
+import React, { useEffect, useState } from "react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -22,15 +22,13 @@ const actionMeta: Record<string, { label: string; icon: typeof Bell }> = {
   BATCH_STATUS_CHANGED: { label: "批量状态已更新", icon: CheckCircle2 },
 };
 
-export function NotificationPanel({
-  open,
-  onOpenChange,
-  onCountChange,
-}: {
+interface NotificationPanelProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onCountChange: (count: number) => void;
-}) {
+}
+
+export const NotificationPanel: React.FC<NotificationPanelProps> = ({ open, onOpenChange, onCountChange }) => {
   const [events, setEvents] = useState<AuditEvent[]>([]);
   const [loading, setLoading] = useState(false);
 
@@ -54,7 +52,9 @@ export function NotificationPanel({
       <SheetContent side="right" className="w-[min(430px,100vw)]">
         <SheetHeader>
           <SheetTitle>通知中心</SheetTitle>
-          <SheetDescription>这里汇总最近的漏洞处理、批量操作和数据刷新事件。</SheetDescription>
+          <SheetDescription>
+            这里汇总最近的漏洞处理、批量操作和数据刷新事件。关闭面板后，仍可点击顶部铃铛重新打开。
+          </SheetDescription>
         </SheetHeader>
         <div className="notification-body">
           {loading && <div className="empty-state">正在加载通知…</div>}
@@ -90,10 +90,10 @@ export function NotificationPanel({
             </div>
           )}
           <Button variant="outline" className="w-full" onClick={() => onOpenChange(false)}>
-            关闭通知
+            关闭面板
           </Button>
         </div>
       </SheetContent>
     </Sheet>
   );
-}
+};

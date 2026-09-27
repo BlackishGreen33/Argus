@@ -3,6 +3,7 @@ import "./globals.scss";
 
 import type { Metadata } from "next";
 import { Geist } from "next/font/google";
+import type React from "react";
 
 import { QueryProvider } from "@/components/QueryProvider";
 import { Toaster } from "@/components/ui/sonner";
@@ -16,7 +17,11 @@ export const metadata: Metadata = {
   description: "A calm workspace for turning dependency evidence into security decisions.",
 };
 
-export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
+interface RootLayoutProps {
+  children: React.ReactNode;
+}
+
+const RootLayout: React.FC<RootLayoutProps> = ({ children }) => {
   return (
     <html lang="zh-CN" className={cn("font-sans", geist.variable)}>
       <body>
@@ -27,4 +32,6 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
       </body>
     </html>
   );
-}
+};
+
+export default RootLayout;

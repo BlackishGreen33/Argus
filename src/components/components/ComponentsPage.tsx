@@ -1,7 +1,7 @@
 "use client";
 
 import { Filter, Pencil, Plus, RotateCw, Search } from "lucide-react";
-import { useMemo, useState } from "react";
+import React, { useMemo, useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -26,27 +26,31 @@ import { formatDate } from "@/utils/format";
 
 const PAGE_SIZE = 25;
 
-export function ComponentsPage({
-  components,
-  query,
-  setQuery,
-  loading,
-  isAdmin,
-  onLogin,
-  onRefresh,
-  onEdit,
-  onCreate,
-}: {
+interface ComponentsPageProps {
   components: ComponentRecord[];
   query: string;
   setQuery: (value: string) => void;
   loading: boolean;
+  authPending: boolean;
   isAdmin: boolean;
   onLogin: () => void;
   onRefresh: () => void;
   onEdit: (component: ComponentRecord) => void;
   onCreate: () => void;
-}) {
+}
+
+export const ComponentsPage: React.FC<ComponentsPageProps> = ({
+  components,
+  query,
+  setQuery,
+  loading,
+  authPending,
+  isAdmin,
+  onLogin,
+  onRefresh,
+  onEdit,
+  onCreate,
+}) => {
   const [page, setPage] = useState(1);
   const [typeFilter, setTypeFilter] = useState("");
   const visibleComponents = useMemo(
@@ -72,8 +76,8 @@ export function ComponentsPage({
           <h1 className="serif">Components</h1>
           <p>维护可追踪、可复核的组件元数据。</p>
         </div>
-        <Button onClick={isAdmin ? onCreate : onLogin}>
-          <Plus size={16} /> 新增组件
+        <Button onClick={isAdmin ? onCreate : onLogin} disabled={authPending}>
+          <Plus size={16} /> {authPending ? "验证登录状态…" : "新增组件"}
         </Button>
       </div>
       <div className="filter-row">
@@ -240,4 +244,4 @@ export function ComponentsPage({
       </div>
     </>
   );
-}
+};

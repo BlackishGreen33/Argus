@@ -279,6 +279,9 @@ a {
   border-left: 1px solid var(--line);
   padding-left: 16px;
 }
+.profile-chip-error {
+  color: var(--critical);
+}
 .avatar {
   width: 32px;
   height: 32px;
@@ -1426,6 +1429,14 @@ a {
 }
 
 :root[data-theme="olive"] {
+  --canvas: #f2f4ef;
+  --surface: #fafbf8;
+  --surface-muted: #e8ede6;
+  --surface-strong: #d9e2d8;
+  --ink: #283028;
+  --ink-soft: #5d675e;
+  --ink-faint: #879187;
+  --line: rgba(57, 76, 61, 0.16);
   --accent: #5f765f;
   --accent-deep: #455c48;
   --accent-soft: #e0e9de;
@@ -1433,6 +1444,14 @@ a {
 }
 
 :root[data-theme="graphite"] {
+  --canvas: #f1f3f5;
+  --surface: #fbfcfd;
+  --surface-muted: #e9edf1;
+  --surface-strong: #dfe4e9;
+  --ink: #242b33;
+  --ink-soft: #59636e;
+  --ink-faint: #8a939c;
+  --line: rgba(48, 57, 68, 0.16);
   --accent: #4d5663;
   --accent-deep: #343b46;
   --accent-soft: #e2e6eb;

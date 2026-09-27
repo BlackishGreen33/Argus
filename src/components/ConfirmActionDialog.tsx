@@ -1,5 +1,7 @@
 "use client";
 
+import type React from "react";
+
 import {
   AlertDialog,
   AlertDialogAction,
@@ -11,21 +13,23 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 
-export function ConfirmActionDialog({
-  open,
-  title,
-  description,
-  confirmLabel = "确认删除",
-  onOpenChange,
-  onConfirm,
-}: {
+interface ConfirmActionDialogProps {
   open: boolean;
   title: string;
   description: string;
   confirmLabel?: string;
   onOpenChange: (open: boolean) => void;
   onConfirm: () => void;
-}) {
+}
+
+export const ConfirmActionDialog: React.FC<ConfirmActionDialogProps> = ({
+  open,
+  title,
+  description,
+  confirmLabel = "确认删除",
+  onOpenChange,
+  onConfirm,
+}) => {
   return (
     <AlertDialog open={open} onOpenChange={onOpenChange}>
       <AlertDialogContent>
@@ -42,4 +46,4 @@ export function ConfirmActionDialog({
       </AlertDialogContent>
     </AlertDialog>
   );
-}
+};

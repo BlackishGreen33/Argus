@@ -1,6 +1,7 @@
 "use client";
 
 import { ArrowUpRight, Check, Clock3, Lock, LogIn, Pencil } from "lucide-react";
+import type React from "react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -13,18 +14,7 @@ import type { DrawerTab } from "@/types/ui";
 import { formatDate } from "@/utils/format";
 import { severityLabels, statusLabels } from "@/utils/labels";
 
-export function CveDrawer({
-  cve,
-  tab,
-  setTab,
-  isAdmin,
-  onLogin,
-  onClose,
-  onStatus,
-  onEdit,
-  onDelete,
-  onCandidate,
-}: {
+interface CveDrawerProps {
   cve: CveRecord;
   tab: DrawerTab;
   setTab: (tab: DrawerTab) => void;
@@ -35,7 +25,26 @@ export function CveDrawer({
   onEdit: () => void;
   onDelete: () => void;
   onCandidate: (id: string, status: "CONFIRMED" | "REJECTED") => void;
-}) {
+}
+
+interface DetailFieldProps {
+  label: string;
+  value: string;
+  locked?: boolean;
+}
+
+export const CveDrawer: React.FC<CveDrawerProps> = ({
+  cve,
+  tab,
+  setTab,
+  isAdmin,
+  onLogin,
+  onClose,
+  onStatus,
+  onEdit,
+  onDelete,
+  onCandidate,
+}) => {
   return (
     <Sheet open onOpenChange={(open) => !open && onClose()}>
       <SheetContent
@@ -211,9 +220,9 @@ export function CveDrawer({
       </SheetContent>
     </Sheet>
   );
-}
+};
 
-function DetailField({ label, value, locked }: { label: string; value: string; locked?: boolean }) {
+const DetailField: React.FC<DetailFieldProps> = ({ label, value, locked }) => {
   return (
     <div className="field detail-field">
       <label className="flex items-center gap-1 whitespace-nowrap">
@@ -225,4 +234,4 @@ function DetailField({ label, value, locked }: { label: string; value: string; l
       </div>
     </div>
   );
-}
+};

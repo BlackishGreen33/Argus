@@ -1,7 +1,7 @@
 "use client";
 
 import { Lock, Trash2, X } from "lucide-react";
-import { useState } from "react";
+import React, { useState } from "react";
 
 import { ConfirmActionDialog } from "@/components/ConfirmActionDialog";
 import { Button } from "@/components/ui/button";
@@ -11,19 +11,21 @@ import { Textarea } from "@/components/ui/textarea";
 import type { ComponentRecord } from "@/types/domain";
 import { request } from "@/utils/http";
 
-export function ComponentEditor({
-  component,
-  onClose,
-  onSaved,
-  onDeleted,
-  onError,
-}: {
+interface ComponentEditorProps {
   component: ComponentRecord | null;
   onClose: () => void;
   onSaved: () => Promise<void>;
   onDeleted: () => Promise<void>;
   onError: (message: string) => void;
-}) {
+}
+
+export const ComponentEditor: React.FC<ComponentEditorProps> = ({
+  component,
+  onClose,
+  onSaved,
+  onDeleted,
+  onError,
+}) => {
   const [form, setForm] = useState({
     purl: component?.purl ?? "pkg:maven/example/library@1.0.0",
     name: component?.name ?? "",
@@ -173,4 +175,4 @@ export function ComponentEditor({
       />
     </>
   );
-}
+};

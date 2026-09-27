@@ -1,7 +1,7 @@
 "use client";
 
 import { Activity, Lock, X } from "lucide-react";
-import { useState } from "react";
+import React, { useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
@@ -12,15 +12,13 @@ import type { CveRecord } from "@/types/domain";
 import { request } from "@/utils/http";
 import { severityLabels } from "@/utils/labels";
 
-export function CveEditor({
-  cve,
-  onClose,
-  onSaved,
-}: {
+interface CveEditorProps {
   cve: CveRecord;
   onClose: () => void;
   onSaved: (cve: CveRecord) => void;
-}) {
+}
+
+export const CveEditor: React.FC<CveEditorProps> = ({ cve, onClose, onSaved }) => {
   const [form, setForm] = useState({
     title: cve.title ?? "",
     description: cve.description ?? "",
@@ -156,4 +154,4 @@ export function CveEditor({
       </DialogContent>
     </Dialog>
   );
-}
+};
