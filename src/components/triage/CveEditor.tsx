@@ -3,6 +3,11 @@
 import { Activity, Lock, X } from "lucide-react";
 import { useState } from "react";
 
+import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Textarea } from "@/components/ui/textarea";
 import type { CveRecord } from "@/types/domain";
 import { request } from "@/utils/http";
 import { severityLabels } from "@/utils/labels";
@@ -51,8 +56,10 @@ export function CveEditor({
     }
   };
   return (
-    <div className="editor-overlay">
-      <section className="editor" role="dialog" aria-modal="true" aria-label="编辑漏洞记录">
+    <Dialog open onOpenChange={(open) => !open && onClose()}>
+      <DialogContent className="editor max-w-[920px] p-0" showCloseButton={false}>
+        <DialogTitle className="sr-only">编辑漏洞记录</DialogTitle>
+        <DialogDescription className="sr-only">修改漏洞标题、描述、评分和受影响版本。</DialogDescription>
         <div className="editor-header">
           <div>
             <div className="eyebrow">Triage / {cve.cveId}</div>
@@ -61,14 +68,14 @@ export function CveEditor({
               <Activity size={13} /> 未保存的本地修改
             </span>
           </div>
-          <button className="drawer-close" onClick={onClose} aria-label="关闭编辑">
+          <Button variant="ghost" size="icon-sm" className="drawer-close" onClick={onClose} aria-label="关闭编辑">
             <X size={20} />
-          </button>
+          </Button>
         </div>
         <div className="editor-form">
           <div className="field">
             <label htmlFor="cve-title">标题</label>
-            <input
+            <Input
               id="cve-title"
               value={form.title}
               onChange={(event) => setForm({ ...form, title: event.target.value })}
@@ -76,21 +83,22 @@ export function CveEditor({
           </div>
           <div className="field">
             <label htmlFor="cve-severity">严重度</label>
-            <select
-              id="cve-severity"
-              value={form.severity}
-              onChange={(event) => setForm({ ...form, severity: event.target.value })}
-            >
-              {Object.entries(severityLabels).map(([value, label]) => (
-                <option key={value} value={value}>
-                  {label}
-                </option>
-              ))}
-            </select>
+            <Select value={form.severity} onValueChange={(value) => setForm({ ...form, severity: value })}>
+              <SelectTrigger id="cve-severity" aria-label="严重度">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {Object.entries(severityLabels).map(([value, label]) => (
+                  <SelectItem key={value} value={value}>
+                    {label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
           <div className="field">
             <label htmlFor="cve-score">CVSS v3</label>
-            <input
+            <Input
               id="cve-score"
               type="number"
               min="0"
@@ -104,11 +112,11 @@ export function CveEditor({
             <label>
               来源识别 <Lock size={12} />
             </label>
-            <input value={`${cve.sourceName ?? "NVD"} · ${cve.sourceId}`} disabled />
+            <Input value={`${cve.sourceName ?? "NVD"} · ${cve.sourceId}`} disabled />
           </div>
           <div className="field full">
             <label htmlFor="cve-description">描述</label>
-            <textarea
+            <Textarea
               id="cve-description"
               value={form.description}
               onChange={(event) => setForm({ ...form, description: event.target.value })}
@@ -116,7 +124,7 @@ export function CveEditor({
           </div>
           <div className="field">
             <label htmlFor="cve-versions">受影响版本</label>
-            <input
+            <Input
               id="cve-versions"
               value={form.affectedVersions}
               onChange={(event) => setForm({ ...form, affectedVersions: event.target.value })}
@@ -124,7 +132,7 @@ export function CveEditor({
           </div>
           <div className="field">
             <label htmlFor="cve-cwe">CWE</label>
-            <input
+            <Input
               id="cve-cwe"
               value={form.cweIds}
               onChange={(event) => setForm({ ...form, cweIds: event.target.value })}
@@ -134,18 +142,18 @@ export function CveEditor({
             <label>
               来源链接 <Lock size={12} />
             </label>
-            <input value={cve.sourceLink ?? "—"} disabled />
+            <Input value={cve.sourceLink ?? "—"} disabled />
           </div>
           <div className="editor-footer">
-            <button className="secondary-button" onClick={onClose}>
+            <Button variant="outline" onClick={onClose}>
               取消
-            </button>
-            <button className="primary-button" onClick={save} disabled={saving}>
+            </Button>
+            <Button onClick={save} disabled={saving}>
               {saving ? "保存中…" : "保存修改"}
-            </button>
+            </Button>
           </div>
         </div>
-      </section>
-    </div>
+      </DialogContent>
+    </Dialog>
   );
 }

@@ -1,8 +1,9 @@
 "use client";
 
 import { Activity, Check, RotateCw } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
+import { Button } from "@/components/ui/button";
 import type { ImportJob, OverviewData } from "@/types/domain";
 import { request } from "@/utils/http";
 import { importStatusLabel, severityLabels } from "@/utils/labels";
@@ -24,9 +25,16 @@ export function OverviewPage({
 }) {
   const [job, setJob] = useState<ImportJob | null>(data?.latestImport ?? null);
   const [working, setWorking] = useState(false);
+  const timerRef = useRef<number | null>(null);
   useEffect(() => {
     setJob(data?.latestImport ?? null);
   }, [data?.latestImport]);
+  useEffect(
+    () => () => {
+      if (timerRef.current !== null) window.clearInterval(timerRef.current);
+    },
+    [],
+  );
   const startImport = async () => {
     if (!isAdmin) return onLogin();
     setWorking(true);
@@ -34,13 +42,21 @@ export function OverviewPage({
       const response = await request<{ data: ImportJob }>("/api/imports", { method: "POST" });
       setJob(response.data);
       onToast("数据刷新已进入队列");
-      const timer = window.setInterval(async () => {
-        const next = await request<{ data: ImportJob }>(`/api/imports/${response.data.id}`);
-        setJob(next.data);
-        if (["PREVIEW_READY", "FAILED", "SUCCEEDED"].includes(next.data.status)) {
-          window.clearInterval(timer);
+      timerRef.current = window.setInterval(async () => {
+        try {
+          const next = await request<{ data: ImportJob }>(`/api/imports/${response.data.id}`);
+          setJob(next.data);
+          if (["PREVIEW_READY", "FAILED", "SUCCEEDED"].includes(next.data.status)) {
+            if (timerRef.current !== null) window.clearInterval(timerRef.current);
+            timerRef.current = null;
+            setWorking(false);
+            await onRefresh();
+          }
+        } catch (error) {
+          if (timerRef.current !== null) window.clearInterval(timerRef.current);
+          timerRef.current = null;
           setWorking(false);
-          await onRefresh();
+          onToast(error instanceof Error ? error.message : "刷新状态失败");
         }
       }, 1000);
     } catch (error) {
@@ -79,10 +95,10 @@ export function OverviewPage({
           <h1 className="serif">Overview</h1>
           <p>让风险状态保持可见、可解释、可复现。</p>
         </div>
-        <button className="primary-button" onClick={startImport} disabled={working}>
+        <Button onClick={startImport} disabled={working}>
           {working ? <RotateCw size={15} className="spin" /> : <RotateCw size={15} />}{" "}
           {working ? "刷新中…" : "刷新内建数据"}
-        </button>
+        </Button>
       </div>
       {loading && !data ? (
         <div className="empty-state">正在计算风险状态…</div>
@@ -91,7 +107,7 @@ export function OverviewPage({
           <div className="dashboard-grid">
             <Metric label="未处理 Critical" value={data?.openCritical ?? 0} note="需要优先确认" />
             <Metric label="未处理 High" value={data?.openHigh ?? 0} note="等待分流" />
-            <Metric label="Risk Index" value={`${data?.riskIndex ?? 0}`} note="Argus 工作台指标" />
+            <Metric label="Argus Risk Index" value={`${data?.riskIndex ?? 0}`} note="工作台排序指标，不等同 CVSS" />
             <Metric
               label="候选关系"
               value={data?.ecosystems.reduce((sum, item) => sum + item.count, 0) ?? 0}
@@ -147,9 +163,9 @@ export function OverviewPage({
                     {job?.retryCount ? ` · 已重试 ${job.retryCount} 次` : ""}
                   </div>
                 </div>
-                <button className="secondary-button" onClick={startImport} disabled={working}>
+                <Button variant="outline" onClick={startImport} disabled={working}>
                   <RotateCw size={14} /> 重新预览
-                </button>
+                </Button>
               </div>
               {job?.summary && (
                 <div className="diff-list">
@@ -171,20 +187,20 @@ export function OverviewPage({
               )}
               {job?.status === "PREVIEW_READY" && isAdmin && (
                 <div style={{ display: "flex", gap: 8, marginTop: 14 }}>
-                  <button className="primary-button" onClick={merge}>
+                  <Button onClick={merge}>
                     <Check size={15} /> 合并更新
-                  </button>
-                  <button className="secondary-button" onClick={() => onToast("差异样本已在上方展示")}>
+                  </Button>
+                  <Button variant="outline" onClick={() => onToast("差异样本已在上方展示")}>
                     查看差异
-                  </button>
+                  </Button>
                 </div>
               )}
               {job?.status === "FAILED" && (
                 <div style={{ marginTop: 14, display: "flex", alignItems: "center", gap: 10 }}>
                   <span className="cell-muted">{job.errorMessage ?? "导入失败"}</span>
-                  <button className="secondary-button small-button" onClick={retry}>
+                  <Button variant="outline" size="sm" onClick={retry}>
                     重试
-                  </button>
+                  </Button>
                 </div>
               )}
             </section>

@@ -613,6 +613,10 @@ function importSummary(source: Awaited<ReturnType<typeof loadSourceData>>) {
 }
 
 async function enqueueImport(id: string, actorEmail: string) {
+  if (!useDatabase) {
+    await prepareImportJob(id, actorEmail);
+    return;
+  }
   const url = importWorkerUrl();
   if (qstash && url) {
     try {
@@ -716,8 +720,8 @@ export async function prepareImportJob(id: string, actorEmail: string) {
     job.sourceChecksum = source.checksum;
     job.summary = { components: source.components.length, cves: source.cves.length, candidates: source.cves.length };
     job.sampleDiffs = [
-      { entity: "CVE", key: source.cves[0]?.cveId ?? "n/a", change: "來源資料可供預覽" },
-      { entity: "Component", key: source.components[0]?.purl ?? "n/a", change: "來源資料可供預覽" },
+      { entity: "CVE", key: source.cves[0]?.cveId ?? "n/a", change: "来源资料可供预览" },
+      { entity: "Component", key: source.components[0]?.purl ?? "n/a", change: "来源资料可供预览" },
     ];
     job.status = "PREVIEW_READY";
     recordAudit({

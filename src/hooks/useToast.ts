@@ -1,10 +1,9 @@
-import { useCallback, useState } from "react";
+import { useCallback } from "react";
+import { toast as sonnerToast } from "sonner";
 
 export function useToast() {
-  const [toast, setToast] = useState<string | null>(null);
   const notify = useCallback((message: string) => {
-    setToast(message);
-    window.setTimeout(() => setToast(null), 3000);
+    sonnerToast(message);
   }, []);
-  return { toast, notify };
+  return { notify };
 }

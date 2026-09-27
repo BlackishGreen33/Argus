@@ -307,3 +307,7 @@ Argus/
 - [Supabase + Prisma](https://supabase.com/docs/guides/database/prisma)
 - [WCAG 2.2](https://www.w3.org/TR/wcag/)
 - [ARIA Authoring Practices](https://www.w3.org/WAI/ARIA/apg/)
+
+## 致谢
+
+- [Rare UI](https://www.rareui.com/)：Delete Button 与 Notification Bell 元件，依其 MIT with Commons Clause 授權要求保留來源連結。

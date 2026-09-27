@@ -1,15 +1,17 @@
 "use client";
 
+import { useQueryClient } from "@tanstack/react-query";
 import {
-  Bell,
   Boxes,
   ChartNoAxesCombined,
   CircleHelp,
   Command,
+  GitBranch,
   LayoutList,
   LogIn,
   LogOut,
   Menu,
+  PanelLeft,
   Search,
   Settings,
   UserRound,
@@ -19,28 +21,35 @@ import { useEffect, useMemo, useState } from "react";
 import { CommandPalette } from "@/components/CommandPalette";
 import { ComponentEditor } from "@/components/components/ComponentEditor";
 import { ComponentsPage } from "@/components/components/ComponentsPage";
+import { HelpPanel } from "@/components/layout/HelpPanel";
 import { NavButton } from "@/components/layout/Navigation";
+import { NotificationPanel } from "@/components/layout/NotificationPanel";
+import { SettingsPanel, type ThemeAccent } from "@/components/layout/SettingsPanel";
 import { LoginDialog } from "@/components/LoginDialog";
 import { OverviewPage } from "@/components/overview/OverviewPage";
+import { PageTransition } from "@/components/PageTransition";
 import { CveDrawer } from "@/components/triage/CveDrawer";
 import { CveEditor } from "@/components/triage/CveEditor";
 import { TriagePage } from "@/components/triage/TriagePage";
+import { NotificationBell } from "@/components/ui/notification-bell";
+import { argusQueryKeys, useArgusQueries } from "@/hooks/useArgusQueries";
 import { useKeyboardShortcuts } from "@/hooks/useKeyboardShortcuts";
 import { useToast } from "@/hooks/useToast";
-import type { ComponentRecord, CveRecord, OverviewData, TriageStatus } from "@/types/domain";
+import type { ComponentRecord, CveRecord, TriageStatus } from "@/types/domain";
 import type { DrawerTab, GlobalResult, Page } from "@/types/ui";
 import { request } from "@/utils/http";
 import { statusLabels } from "@/utils/labels";
 
 export function ArgusApp() {
+  const queryClient = useQueryClient();
   const [page, setPage] = useState<Page>("triage");
-  const [cves, setCves] = useState<CveRecord[]>([]);
-  const [components, setComponents] = useState<ComponentRecord[]>([]);
-  const [overviewData, setOverviewData] = useState<OverviewData | null>(null);
+  const [cvePage, setCvePage] = useState(1);
+  const [cvePageSize, setCvePageSize] = useState(10);
   const [selected, setSelected] = useState<CveRecord | null>(null);
   const [drawerTab, setDrawerTab] = useState<DrawerTab>("Overview");
   const [drawerOpen, setDrawerOpen] = useState(false);
-  const [localQuery, setLocalQuery] = useState("");
+  const [triageQuery, setTriageQuery] = useState("");
+  const [componentQuery, setComponentQuery] = useState("");
   const [severityFilter, setSeverityFilter] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
   const [ecosystemFilter, setEcosystemFilter] = useState("");
@@ -53,49 +62,62 @@ export function ArgusApp() {
   const [loginOpen, setLoginOpen] = useState(false);
   const [editorOpen, setEditorOpen] = useState(false);
   const [componentEditorOpen, setComponentEditorOpen] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [helpOpen, setHelpOpen] = useState(false);
+  const [notificationsOpen, setNotificationsOpen] = useState(false);
+  const [notificationCount, setNotificationCount] = useState(0);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [themeAccent, setThemeAccent] = useState<ThemeAccent>("terracotta");
   const [editingComponent, setEditingComponent] = useState<ComponentRecord | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const { toast, notify } = useToast();
-
-  const loadData = async (
-    query = localQuery,
-    filterOverrides?: Partial<{ severity: string; status: string; ecosystem: string }>,
-  ) => {
-    const filters = { severity: severityFilter, status: statusFilter, ecosystem: ecosystemFilter, ...filterOverrides };
-    setLoading(true);
-    setError(null);
-    try {
-      const [cveResponse, componentResponse, overviewResponse, userResponse] = await Promise.all([
-        request<{ data: CveRecord[] }>(
-          `/api/cves?query=${encodeURIComponent(query)}&pageSize=50${filters.severity ? `&severity=${filters.severity}` : ""}${filters.status ? `&status=${filters.status}` : ""}${filters.ecosystem ? `&ecosystem=${filters.ecosystem}` : ""}`,
-        ),
-        request<{ data: ComponentRecord[] }>("/api/components"),
-        request<{ data: OverviewData }>("/api/overview"),
-        request<{ data: { email: string; role: string } }>("/api/auth/me"),
-      ]);
-      setCves(cveResponse.data);
-      setComponents(componentResponse.data);
-      setOverviewData(overviewResponse.data);
-      setIsAdmin(userResponse.data.role === "admin");
-      setAdminEmail(userResponse.data.email);
-      if (selected) {
-        const refreshed = cveResponse.data.find((item) => item.cveId === selected.cveId);
-        if (refreshed) setSelected(refreshed);
-      }
-    } catch (requestError) {
-      setError(requestError instanceof Error ? requestError.message : "加载失败");
-    } finally {
-      setLoading(false);
-    }
+  const { notify } = useToast();
+  const queries = useArgusQueries({
+    query: triageQuery,
+    page: cvePage,
+    pageSize: cvePageSize,
+    severity: severityFilter,
+    status: statusFilter,
+    ecosystem: ecosystemFilter,
+  });
+  const cves = useMemo(() => queries.cves.data?.data ?? [], [queries.cves.data]);
+  const components = queries.components.data?.data ?? [];
+  const overviewData = queries.overview.data?.data ?? null;
+  const cveTotal = queries.cves.data?.meta?.total ?? cves.length;
+  const loading =
+    queries.cves.isFetching || queries.components.isFetching || queries.overview.isFetching || queries.user.isFetching;
+  const error =
+    [queries.cves.error, queries.components.error, queries.overview.error, queries.user.error].find(Boolean)?.message ??
+    null;
+  const loadData = async () => {
+    await queryClient.invalidateQueries({ queryKey: argusQueryKeys.all });
   };
 
-  // The first request intentionally uses an empty query; later list searches call loadData(value).
   useEffect(() => {
-    void loadData("");
-    // The initial request intentionally runs once; later searches call loadData(value).
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    if (!queries.user.data) return;
+    setIsAdmin(queries.user.data.data.role === "admin");
+    setAdminEmail(queries.user.data.data.email);
+  }, [queries.user.data]);
+
+  useEffect(() => {
+    if (!selected) return;
+    const refreshed = cves.find((item) => item.cveId === selected.cveId);
+    if (refreshed && refreshed !== selected) setSelected(refreshed);
+  }, [cves, selected]);
+
+  useEffect(() => {
+    const savedTheme = window.localStorage.getItem("argus_theme");
+    const savedSidebar = window.localStorage.getItem("argus_sidebar_collapsed");
+    if (savedTheme === "terracotta" || savedTheme === "olive" || savedTheme === "graphite") setThemeAccent(savedTheme);
+    if (savedSidebar === "true") setSidebarCollapsed(true);
   }, []);
+
+  useEffect(() => {
+    document.documentElement.dataset.theme = themeAccent;
+    window.localStorage.setItem("argus_theme", themeAccent);
+  }, [themeAccent]);
+
+  useEffect(() => {
+    window.localStorage.setItem("argus_sidebar_collapsed", String(sidebarCollapsed));
+  }, [sidebarCollapsed]);
 
   useKeyboardShortcuts(
     () => setCommandOpen(true),
@@ -104,6 +126,9 @@ export function ArgusApp() {
       setDrawerOpen(false);
       setEditorOpen(false);
       setLoginOpen(false);
+      setSettingsOpen(false);
+      setHelpOpen(false);
+      setNotificationsOpen(false);
     },
   );
 
@@ -115,9 +140,7 @@ export function ArgusApp() {
   };
 
   const updateLocalCve = (next: CveRecord) => {
-    setCves((current) => current.map((item) => (item.cveId === next.cveId ? next : item)));
     setSelected(next);
-    setOverviewData(null);
     void loadData();
   };
 
@@ -150,7 +173,7 @@ export function ArgusApp() {
   };
 
   const deleteSelected = async () => {
-    if (!selected || !window.confirm(`确认删除 ${selected.cveId}？删除后将保留删除事件。`)) return;
+    if (!selected) return;
     try {
       await request(`/api/cves/${encodeURIComponent(selected.cveId)}`, { method: "DELETE" });
       setDrawerOpen(false);
@@ -162,7 +185,7 @@ export function ArgusApp() {
     }
   };
 
-  const login = async (provider: string, email = "admin@argus.local") => {
+  const login = async (provider: string, email = "admin@argus.local", password = "argus-demo") => {
     try {
       if (provider !== "email") {
         const response = await request<{ data: { url: string } }>(`/api/auth/oauth/${provider}`);
@@ -171,7 +194,7 @@ export function ArgusApp() {
       }
       const response = await request<{ data: { email: string; role: string; accessToken?: string } }>(
         "/api/auth/login",
-        { method: "POST", body: JSON.stringify({ email, password: "argus-demo" }) },
+        { method: "POST", body: JSON.stringify({ email, password }) },
       );
       if (response.data.accessToken) window.localStorage.setItem("argus_access_token", response.data.accessToken);
       setIsAdmin(response.data.role === "admin");
@@ -224,11 +247,11 @@ export function ArgusApp() {
               openCve(response.data);
             } catch {
               setPage("triage");
-              setLocalQuery(result.target);
+              setTriageQuery(result.target);
             }
           } else {
             setPage("components");
-            setLocalQuery(result.target);
+            setComponentQuery(result.target);
             setCommandOpen(false);
           }
         },
@@ -237,16 +260,20 @@ export function ArgusApp() {
   );
 
   return (
-    <div className="app-shell">
-      <aside className="sidebar">
+    <div className={`app-shell ${sidebarCollapsed ? "sidebar-is-collapsed" : ""}`}>
+      <aside className={`sidebar ${sidebarCollapsed ? "collapsed" : ""}`}>
         <div>
           <div className="wordmark">
             <div>
               <strong>ARGUS</strong>
               <span>软件供应链</span>
             </div>
-            <button className="icon-button mobile-menu" aria-label="打开菜单">
-              <Menu size={18} />
+            <button
+              className="icon-button mobile-menu"
+              aria-label={sidebarCollapsed ? "展开导航" : "折叠导航"}
+              onClick={() => setSidebarCollapsed((value) => !value)}
+            >
+              {sidebarCollapsed ? <Menu size={18} /> : <PanelLeft size={18} />}
             </button>
           </div>
           <nav className="nav" aria-label="主导航">
@@ -255,31 +282,46 @@ export function ArgusApp() {
               icon={<LayoutList size={17} />}
               label="Triage"
               onClick={() => setPage("triage")}
+              collapsed={sidebarCollapsed}
             />
             <NavButton
               active={page === "components"}
               icon={<Boxes size={17} />}
               label="Components"
               onClick={() => setPage("components")}
+              collapsed={sidebarCollapsed}
             />
             <NavButton
               active={page === "overview"}
               icon={<ChartNoAxesCombined size={17} />}
               label="Overview"
               onClick={() => setPage("overview")}
+              collapsed={sidebarCollapsed}
             />
           </nav>
         </div>
         <div className="sidebar-footer">
           <div className="footer-links">
-            <NavButton icon={<Settings size={16} />} label="设置" onClick={() => notify("设置将由部署环境变量提供")} />
+            <NavButton
+              icon={<Settings size={16} />}
+              label="设置"
+              onClick={() => setSettingsOpen(true)}
+              collapsed={sidebarCollapsed}
+            />
             <NavButton
               icon={<CircleHelp size={16} />}
               label="帮助"
-              onClick={() => window.open("/api/docs", "_blank")}
+              onClick={() => setHelpOpen(true)}
+              collapsed={sidebarCollapsed}
             />
           </div>
-          <div className="footer-note">更安全的软件，更稳定的未来。</div>
+          <NavButton
+            icon={<GitBranch size={16} />}
+            label="GitHub 仓库"
+            onClick={() => window.open("https://github.com/BlackishGreen33/Argus", "_blank", "noopener,noreferrer")}
+            collapsed={sidebarCollapsed}
+          />
+          {!sidebarCollapsed && <div className="footer-note">更安全的软件，更稳定的未来。</div>}
         </div>
       </aside>
 
@@ -302,9 +344,14 @@ export function ArgusApp() {
             </span>
           </div>
           <div className="top-actions">
-            <button className="icon-button" aria-label="通知" onClick={() => notify("暂无新的安全通知")}>
-              <Bell size={18} />
-            </button>
+            <NotificationBell
+              className="notification-button"
+              size={36}
+              color="orange"
+              aria-label={`通知${notificationCount ? `，${notificationCount} 条` : ""}`}
+              onClick={() => setNotificationsOpen(true)}
+              count={notificationCount}
+            />
             {isAdmin ? (
               <button className="profile-chip" onClick={logout} aria-label="退出 Admin">
                 <span className="avatar">AD</span>
@@ -329,87 +376,106 @@ export function ArgusApp() {
           </div>
         </header>
 
-        {commandOpen && (
-          <CommandPalette
-            query={globalQuery}
-            results={paletteResults}
-            onQueryChange={setGlobalQuery}
-            onClose={() => setCommandOpen(false)}
-          />
-        )}
+        <CommandPalette
+          open={commandOpen}
+          query={globalQuery}
+          results={paletteResults}
+          onQueryChange={setGlobalQuery}
+          onClose={() => setCommandOpen(false)}
+        />
         <div className="content">
-          {page === "triage" && (
-            <TriagePage
-              cves={cves}
-              selectedIds={selectedIds}
-              setSelectedIds={setSelectedIds}
-              loading={loading}
-              error={error}
-              pageTitle={pageTitle}
-              pageSubtitle={pageSubtitle}
-              localQuery={localQuery}
-              setLocalQuery={(value) => {
-                setLocalQuery(value);
-                void loadData(value);
-              }}
-              severityFilter={severityFilter}
-              statusFilter={statusFilter}
-              ecosystemFilter={ecosystemFilter}
-              onSeverityChange={(value) => {
-                setSeverityFilter(value);
-                void loadData(localQuery, { severity: value });
-              }}
-              onStatusFilterChange={(value) => {
-                setStatusFilter(value);
-                void loadData(localQuery, { status: value });
-              }}
-              onEcosystemChange={(value) => {
-                setEcosystemFilter(value);
-                void loadData(localQuery, { ecosystem: value });
-              }}
-              onClearFilters={() => {
-                setSeverityFilter("");
-                setStatusFilter("");
-                setEcosystemFilter("");
-                void loadData(localQuery, { severity: "", status: "", ecosystem: "" });
-              }}
-              openCve={openCve}
-              onBatchStatus={batchStatus}
-              isAdmin={isAdmin}
-              onLogin={() => setLoginOpen(true)}
-            />
-          )}
-          {page === "components" && (
-            <ComponentsPage
-              components={components}
-              query={localQuery}
-              setQuery={setLocalQuery}
-              loading={loading}
-              isAdmin={isAdmin}
-              onLogin={() => setLoginOpen(true)}
-              onRefresh={() => {
-                void loadData();
-              }}
-              onEdit={(component) => {
-                setEditingComponent(component);
-                setComponentEditorOpen(true);
-              }}
-              onCreate={() => {
-                setEditingComponent(null);
-                setComponentEditorOpen(true);
-              }}
-            />
-          )}
-          {page === "overview" && (
-            <OverviewPage
-              data={overviewData}
-              loading={loading}
-              isAdmin={isAdmin}
-              onLogin={() => setLoginOpen(true)}
-              onToast={notify}
-              onRefresh={loadData}
-            />
-          )}
+          <PageTransition page={page}>
+            {page === "triage" && (
+              <TriagePage
+                cves={cves}
+                selectedIds={selectedIds}
+                setSelectedIds={setSelectedIds}
+                loading={loading}
+                error={error}
+                pageTitle={pageTitle}
+                pageSubtitle={pageSubtitle}
+                localQuery={triageQuery}
+                setLocalQuery={(value) => {
+                  setTriageQuery(value);
+                  setCvePage(1);
+                  void loadData();
+                }}
+                severityFilter={severityFilter}
+                statusFilter={statusFilter}
+                ecosystemFilter={ecosystemFilter}
+                onSeverityChange={(value) => {
+                  setSeverityFilter(value);
+                  setCvePage(1);
+                  void loadData();
+                }}
+                onStatusFilterChange={(value) => {
+                  setStatusFilter(value);
+                  setCvePage(1);
+                  void loadData();
+                }}
+                onEcosystemChange={(value) => {
+                  setEcosystemFilter(value);
+                  setCvePage(1);
+                  void loadData();
+                }}
+                onClearFilters={() => {
+                  setSeverityFilter("");
+                  setStatusFilter("");
+                  setEcosystemFilter("");
+                  setCvePage(1);
+                  void loadData();
+                }}
+                onToast={notify}
+                openCve={openCve}
+                onBatchStatus={batchStatus}
+                isAdmin={isAdmin}
+                onLogin={() => setLoginOpen(true)}
+                page={cvePage}
+                pageSize={cvePageSize}
+                total={cveTotal}
+                onPageChange={(nextPage) => {
+                  setCvePage(nextPage);
+                  void loadData();
+                }}
+                onPageSizeChange={(nextPageSize) => {
+                  setCvePageSize(nextPageSize);
+                  setCvePage(1);
+                  void loadData();
+                }}
+              />
+            )}
+            {page === "components" && (
+              <ComponentsPage
+                components={components}
+                query={componentQuery}
+                setQuery={setComponentQuery}
+                loading={loading}
+                isAdmin={isAdmin}
+                onLogin={() => setLoginOpen(true)}
+                onRefresh={() => {
+                  void loadData();
+                }}
+                onEdit={(component) => {
+                  setEditingComponent(component);
+                  setComponentEditorOpen(true);
+                }}
+                onCreate={() => {
+                  setEditingComponent(null);
+                  setComponentEditorOpen(true);
+                }}
+              />
+            )}
+            {page === "overview" && (
+              <OverviewPage
+                data={overviewData}
+                loading={loading}
+                isAdmin={isAdmin}
+                onLogin={() => setLoginOpen(true)}
+                onToast={notify}
+                onRefresh={loadData}
+              />
+            )}
+          </PageTransition>
         </div>
       </main>
 
@@ -423,7 +489,7 @@ export function ArgusApp() {
           onClose={() => setDrawerOpen(false)}
           onStatus={changeStatus}
           onEdit={() => setEditorOpen(true)}
-          onDelete={deleteSelected}
+          onDelete={() => void deleteSelected()}
           onCandidate={async (id, status) => {
             await request(`/api/cpe-candidates/${id}`, { method: "PATCH", body: JSON.stringify({ status }) });
             notify(status === "CONFIRMED" ? "候选关联已确认" : "候选关联已排除");
@@ -460,11 +526,20 @@ export function ArgusApp() {
         />
       )}
       {loginOpen && <LoginDialog onClose={() => setLoginOpen(false)} onLogin={login} />}
-      {toast && (
-        <div className="toast" role="status">
-          {toast}
-        </div>
-      )}
+      <SettingsPanel
+        open={settingsOpen}
+        onOpenChange={setSettingsOpen}
+        theme={themeAccent}
+        onThemeChange={setThemeAccent}
+        collapsed={sidebarCollapsed}
+        onCollapsedChange={setSidebarCollapsed}
+      />
+      <HelpPanel open={helpOpen} onOpenChange={setHelpOpen} />
+      <NotificationPanel
+        open={notificationsOpen}
+        onOpenChange={setNotificationsOpen}
+        onCountChange={setNotificationCount}
+      />
     </div>
   );
 }
