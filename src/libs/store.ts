@@ -1,8 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { prisma } from "./prisma";
-import { demoComponents, demoCves } from "./demo-data";
-import { findCandidateComponents, loadSourceData, type ParsedComponent, type ParsedCve } from "./parser";
-import { importWorkerUrl, qstash } from "./qstash";
+
 import type {
   AuditEvent,
   ComponentRecord,
@@ -11,7 +8,12 @@ import type {
   ImportJob,
   OverviewData,
   TriageStatus,
-} from "./types";
+} from "@/types/domain";
+
+import { demoComponents, demoCves } from "./demo-data";
+import { findCandidateComponents, loadSourceData, type ParsedComponent, type ParsedCve } from "./parser";
+import { prisma } from "./prisma";
+import { importWorkerUrl, qstash } from "./qstash";
 
 type CveFilters = {
   query?: string;
@@ -30,13 +32,12 @@ type StoreState = {
 };
 
 const globalStore = globalThis as unknown as { argusStore?: StoreState };
-const store: StoreState =
-  globalStore.argusStore ?? {
-    cves: structuredClone(demoCves),
-    components: structuredClone(demoComponents),
-    auditEvents: [],
-    imports: [],
-  };
+const store: StoreState = globalStore.argusStore ?? {
+  cves: structuredClone(demoCves),
+  components: structuredClone(demoComponents),
+  auditEvents: [],
+  imports: [],
+};
 if (process.env.NODE_ENV !== "production") globalStore.argusStore = store;
 
 export const useDatabase = Boolean(process.env.DATABASE_URL) && process.env.DEMO_MODE === "false";
@@ -163,20 +164,51 @@ export async function listCves(filters: CveFilters = {}) {
 
   if (useDatabase) {
     const records = await prisma.cve.findMany({
-      include: { candidates: { include: { component: true } }, auditEvents: { orderBy: { createdAt: "desc" }, take: 20 } },
+      include: {
+        candidates: { include: { component: true } },
+        auditEvents: { orderBy: { createdAt: "desc" }, take: 20 },
+      },
     });
     const data = sortCves(records.map(serializeCve)).filter((record) => {
-      const haystack = [record.cveId, record.title, record.description, ...record.candidates.map((item) => item.componentName)].join(" ").toLowerCase();
-      const ecosystemMatches = !filters.ecosystem || record.candidates.some((item) => item.componentPurl.startsWith(`pkg:${filters.ecosystem}/`));
-      return (!query || haystack.includes(query)) && (!filters.severity || record.severity === filters.severity) && (!filters.status || record.triageStatus === filters.status) && ecosystemMatches;
+      const haystack = [
+        record.cveId,
+        record.title,
+        record.description,
+        ...record.candidates.map((item) => item.componentName),
+      ]
+        .join(" ")
+        .toLowerCase();
+      const ecosystemMatches =
+        !filters.ecosystem ||
+        record.candidates.some((item) => item.componentPurl.startsWith(`pkg:${filters.ecosystem}/`));
+      return (
+        (!query || haystack.includes(query)) &&
+        (!filters.severity || record.severity === filters.severity) &&
+        (!filters.status || record.triageStatus === filters.status) &&
+        ecosystemMatches
+      );
     });
     return { data: data.slice((page - 1) * pageSize, page * pageSize), total: data.length, page, pageSize };
   }
 
   const data = sortCves(store.cves).filter((record) => {
-    const haystack = [record.cveId, record.title, record.description, ...record.candidates.map((item) => item.componentName)].join(" ").toLowerCase();
-    const ecosystemMatches = !filters.ecosystem || record.candidates.some((item) => item.componentPurl.startsWith(`pkg:${filters.ecosystem}/`));
-    return (!query || haystack.includes(query)) && (!filters.severity || record.severity === filters.severity) && (!filters.status || record.triageStatus === filters.status) && ecosystemMatches;
+    const haystack = [
+      record.cveId,
+      record.title,
+      record.description,
+      ...record.candidates.map((item) => item.componentName),
+    ]
+      .join(" ")
+      .toLowerCase();
+    const ecosystemMatches =
+      !filters.ecosystem ||
+      record.candidates.some((item) => item.componentPurl.startsWith(`pkg:${filters.ecosystem}/`));
+    return (
+      (!query || haystack.includes(query)) &&
+      (!filters.severity || record.severity === filters.severity) &&
+      (!filters.status || record.triageStatus === filters.status) &&
+      ecosystemMatches
+    );
   });
   return { data: data.slice((page - 1) * pageSize, page * pageSize), total: data.length, page, pageSize };
 }
@@ -185,14 +217,33 @@ export async function getCve(cveId: string) {
   if (useDatabase) {
     const record = await prisma.cve.findUnique({
       where: { cveId },
-      include: { candidates: { include: { component: true } }, auditEvents: { orderBy: { createdAt: "desc" }, take: 30 } },
+      include: {
+        candidates: { include: { component: true } },
+        auditEvents: { orderBy: { createdAt: "desc" }, take: 30 },
+      },
     });
     return record ? serializeCve(record) : null;
   }
   return store.cves.find((record) => record.cveId === cveId) ?? null;
 }
 
-export async function updateCve(cveId: string, patch: Partial<Pick<CveRecord, "title" | "description" | "severity" | "cvssScoreV3" | "cvssScoreV4" | "cvssScoreV2" | "affectedVersions" | "cweIds">>, actorEmail: string) {
+export async function updateCve(
+  cveId: string,
+  patch: Partial<
+    Pick<
+      CveRecord,
+      | "title"
+      | "description"
+      | "severity"
+      | "cvssScoreV3"
+      | "cvssScoreV4"
+      | "cvssScoreV2"
+      | "affectedVersions"
+      | "cweIds"
+    >
+  >,
+  actorEmail: string,
+) {
   if (useDatabase) {
     const data = Object.fromEntries(Object.entries(patch).filter(([, value]) => value !== undefined));
     const record = await prisma.cve.update({
@@ -200,14 +251,30 @@ export async function updateCve(cveId: string, patch: Partial<Pick<CveRecord, "t
       data: data as any,
       include: { candidates: { include: { component: true } }, auditEvents: true },
     });
-    await prisma.auditEvent.create({ data: { action: "CVE_UPDATED", actorEmail, targetType: "CVE", targetId: cveId, cveId: record.id, metadata: { fields: Object.keys(patch) } } });
+    await prisma.auditEvent.create({
+      data: {
+        action: "CVE_UPDATED",
+        actorEmail,
+        targetType: "CVE",
+        targetId: cveId,
+        cveId: record.id,
+        metadata: { fields: Object.keys(patch) },
+      },
+    });
     return serializeCve(record);
   }
 
   const record = store.cves.find((item) => item.cveId === cveId);
   if (!record) return null;
   Object.assign(record, patch);
-  const event = recordAudit({ action: "CVE_UPDATED", actorEmail, targetType: "CVE", targetId: cveId, cveId: record.id, metadata: { fields: Object.keys(patch) } });
+  const event = recordAudit({
+    action: "CVE_UPDATED",
+    actorEmail,
+    targetType: "CVE",
+    targetId: cveId,
+    cveId: record.id,
+    metadata: { fields: Object.keys(patch) },
+  });
   record.history.unshift(event);
   return record;
 }
@@ -221,14 +288,33 @@ export async function updateStatus(cveId: string, status: TriageStatus, actorEma
     const updated = await prisma.cve.update({
       where: { cveId },
       data: { triageStatus: status },
-      include: { candidates: { include: { component: true } }, auditEvents: { orderBy: { createdAt: "desc" }, take: 30 } },
+      include: {
+        candidates: { include: { component: true } },
+        auditEvents: { orderBy: { createdAt: "desc" }, take: 30 },
+      },
     });
-    await prisma.auditEvent.create({ data: { action: "STATUS_CHANGED", actorEmail, targetType: "CVE", targetId: cveId, cveId: updated.id, metadata: { from: previous, status } } });
+    await prisma.auditEvent.create({
+      data: {
+        action: "STATUS_CHANGED",
+        actorEmail,
+        targetType: "CVE",
+        targetId: cveId,
+        cveId: updated.id,
+        metadata: { from: previous, status },
+      },
+    });
     return serializeCve(updated);
   }
 
   record.triageStatus = status;
-  const event = recordAudit({ action: "STATUS_CHANGED", actorEmail, targetType: "CVE", targetId: cveId, cveId: record.id, metadata: { from: previous, status } });
+  const event = recordAudit({
+    action: "STATUS_CHANGED",
+    actorEmail,
+    targetType: "CVE",
+    targetId: cveId,
+    cveId: record.id,
+    metadata: { from: previous, status },
+  });
   record.history.unshift(event);
   return record;
 }
@@ -240,7 +326,9 @@ export async function batchUpdateStatus(cveIds: string[], status: TriageStatus, 
     if (record) updated.push(record);
   }
   if (useDatabase) {
-    await prisma.auditEvent.create({ data: { action: "BATCH_STATUS_CHANGED", actorEmail, targetType: "CVE", metadata: { cveIds, status } } });
+    await prisma.auditEvent.create({
+      data: { action: "BATCH_STATUS_CHANGED", actorEmail, targetType: "CVE", metadata: { cveIds, status } },
+    });
   }
   recordAudit({ action: "BATCH_STATUS_CHANGED", actorEmail, targetType: "CVE", metadata: { cveIds, status } });
   return updated;
@@ -250,45 +338,110 @@ export async function deleteCve(cveId: string, actorEmail: string) {
   const record = await getCve(cveId);
   if (!record) return false;
   if (useDatabase) {
-    await prisma.auditEvent.create({ data: { action: "CVE_DELETED", actorEmail, targetType: "CVE", targetId: cveId, metadata: { sourceId: record.sourceId } } });
+    await prisma.auditEvent.create({
+      data: {
+        action: "CVE_DELETED",
+        actorEmail,
+        targetType: "CVE",
+        targetId: cveId,
+        metadata: { sourceId: record.sourceId },
+      },
+    });
     await prisma.cve.delete({ where: { cveId } });
     return true;
   }
   store.cves = store.cves.filter((item) => item.cveId !== cveId);
-  recordAudit({ action: "CVE_DELETED", actorEmail, targetType: "CVE", targetId: cveId, metadata: { sourceId: record.sourceId } });
+  recordAudit({
+    action: "CVE_DELETED",
+    actorEmail,
+    targetType: "CVE",
+    targetId: cveId,
+    metadata: { sourceId: record.sourceId },
+  });
   return true;
 }
 
 export async function listComponents(query = "") {
   if (useDatabase) {
     const records = await prisma.component.findMany({ orderBy: { name: "asc" } });
-    return records.map(serializeComponent).filter((item) => `${item.purl} ${item.name} ${item.vendor ?? ""}`.toLowerCase().includes(query.toLowerCase()));
+    return records
+      .map(serializeComponent)
+      .filter((item) => `${item.purl} ${item.name} ${item.vendor ?? ""}`.toLowerCase().includes(query.toLowerCase()));
   }
-  return store.components.filter((item) => `${item.purl} ${item.name} ${item.vendor ?? ""}`.toLowerCase().includes(query.toLowerCase()));
+  return store.components.filter((item) =>
+    `${item.purl} ${item.name} ${item.vendor ?? ""}`.toLowerCase().includes(query.toLowerCase()),
+  );
 }
 
 export async function createComponent(input: Omit<ComponentRecord, "sourceMissing">, actorEmail: string) {
   if (useDatabase) {
-    const created = await prisma.component.create({ data: { ...input, publishDate: input.publishDate ? new Date(input.publishDate) : null, recordTime: input.recordTime ? new Date(input.recordTime) : null } });
-    await prisma.auditEvent.create({ data: { action: "COMPONENT_CREATED", actorEmail, targetType: "COMPONENT", targetId: input.purl, componentPurl: input.purl } });
+    const created = await prisma.component.create({
+      data: {
+        ...input,
+        publishDate: input.publishDate ? new Date(input.publishDate) : null,
+        recordTime: input.recordTime ? new Date(input.recordTime) : null,
+      },
+    });
+    await prisma.auditEvent.create({
+      data: {
+        action: "COMPONENT_CREATED",
+        actorEmail,
+        targetType: "COMPONENT",
+        targetId: input.purl,
+        componentPurl: input.purl,
+      },
+    });
     return serializeComponent(created);
   }
   const component = { ...input, sourceMissing: false };
   store.components.unshift(component);
-  recordAudit({ action: "COMPONENT_CREATED", actorEmail, targetType: "COMPONENT", targetId: input.purl, componentPurl: input.purl });
+  recordAudit({
+    action: "COMPONENT_CREATED",
+    actorEmail,
+    targetType: "COMPONENT",
+    targetId: input.purl,
+    componentPurl: input.purl,
+  });
   return component;
 }
 
-export async function updateComponent(purl: string, input: Partial<Omit<ComponentRecord, "purl" | "sourceMissing">>, actorEmail: string) {
+export async function updateComponent(
+  purl: string,
+  input: Partial<Omit<ComponentRecord, "purl" | "sourceMissing">>,
+  actorEmail: string,
+) {
   if (useDatabase) {
-    const updated = await prisma.component.update({ where: { purl }, data: { ...input, publishDate: input.publishDate ? new Date(input.publishDate) : undefined, recordTime: input.recordTime ? new Date(input.recordTime) : undefined } });
-    await prisma.auditEvent.create({ data: { action: "COMPONENT_UPDATED", actorEmail, targetType: "COMPONENT", targetId: purl, componentPurl: purl, metadata: { fields: Object.keys(input) } } });
+    const updated = await prisma.component.update({
+      where: { purl },
+      data: {
+        ...input,
+        publishDate: input.publishDate ? new Date(input.publishDate) : undefined,
+        recordTime: input.recordTime ? new Date(input.recordTime) : undefined,
+      },
+    });
+    await prisma.auditEvent.create({
+      data: {
+        action: "COMPONENT_UPDATED",
+        actorEmail,
+        targetType: "COMPONENT",
+        targetId: purl,
+        componentPurl: purl,
+        metadata: { fields: Object.keys(input) },
+      },
+    });
     return serializeComponent(updated);
   }
   const component = store.components.find((item) => item.purl === purl);
   if (!component) return null;
   Object.assign(component, input);
-  recordAudit({ action: "COMPONENT_UPDATED", actorEmail, targetType: "COMPONENT", targetId: purl, componentPurl: purl, metadata: { fields: Object.keys(input) } });
+  recordAudit({
+    action: "COMPONENT_UPDATED",
+    actorEmail,
+    targetType: "COMPONENT",
+    targetId: purl,
+    componentPurl: purl,
+    metadata: { fields: Object.keys(input) },
+  });
   return component;
 }
 
@@ -296,47 +449,99 @@ export async function deleteComponent(purl: string, actorEmail: string) {
   if (useDatabase) {
     const exists = await prisma.component.findUnique({ where: { purl }, select: { purl: true } });
     if (!exists) return false;
-    await prisma.auditEvent.create({ data: { action: "COMPONENT_DELETED", actorEmail, targetType: "COMPONENT", targetId: purl, componentPurl: purl } });
+    await prisma.auditEvent.create({
+      data: { action: "COMPONENT_DELETED", actorEmail, targetType: "COMPONENT", targetId: purl, componentPurl: purl },
+    });
     await prisma.component.delete({ where: { purl } });
     return true;
   }
   const exists = store.components.some((item) => item.purl === purl);
   store.components = store.components.filter((item) => item.purl !== purl);
-  recordAudit({ action: "COMPONENT_DELETED", actorEmail, targetType: "COMPONENT", targetId: purl, componentPurl: purl });
+  recordAudit({
+    action: "COMPONENT_DELETED",
+    actorEmail,
+    targetType: "COMPONENT",
+    targetId: purl,
+    componentPurl: purl,
+  });
   return exists;
 }
 
 export async function updateCandidate(id: string, status: "CONFIRMED" | "REJECTED", actorEmail: string) {
   if (useDatabase) {
-    const candidate = await prisma.cpeCandidate.update({ where: { id }, data: { status, confirmedBy: actorEmail, confirmedAt: new Date() }, include: { component: true } });
-    await prisma.auditEvent.create({ data: { action: "CPE_CANDIDATE_REVIEWED", actorEmail, targetType: "CPE_CANDIDATE", targetId: id, cveId: candidate.cveId, componentPurl: candidate.componentPurl, metadata: { status } } });
+    const candidate = await prisma.cpeCandidate.update({
+      where: { id },
+      data: { status, confirmedBy: actorEmail, confirmedAt: new Date() },
+      include: { component: true },
+    });
+    await prisma.auditEvent.create({
+      data: {
+        action: "CPE_CANDIDATE_REVIEWED",
+        actorEmail,
+        targetType: "CPE_CANDIDATE",
+        targetId: id,
+        cveId: candidate.cveId,
+        componentPurl: candidate.componentPurl,
+        metadata: { status },
+      },
+    });
     return serializeCandidate(candidate);
   }
   const candidate = store.cves.flatMap((item) => item.candidates).find((item) => item.id === id);
   if (!candidate) return null;
   candidate.status = status;
-  recordAudit({ action: "CPE_CANDIDATE_REVIEWED", actorEmail, targetType: "CPE_CANDIDATE", targetId: id, metadata: { status } });
+  recordAudit({
+    action: "CPE_CANDIDATE_REVIEWED",
+    actorEmail,
+    targetType: "CPE_CANDIDATE",
+    targetId: id,
+    metadata: { status },
+  });
   return candidate;
 }
 
 export async function overview(): Promise<OverviewData> {
   const { data } = await listCves({ page: 1, pageSize: 5000 });
-  const severity = ["CRITICAL", "HIGH", "MEDIUM", "LOW"].map((name) => ({ name, count: data.filter((item) => item.severity === name).length }));
-  const ecosystemMap = new Map<string, number>();
-  data.forEach((item) => item.candidates.forEach((candidate) => {
-    const ecosystem = candidate.componentPurl.split(":")[1]?.split("/")[0] ?? "other";
-    ecosystemMap.set(ecosystem, (ecosystemMap.get(ecosystem) ?? 0) + 1);
+  const severity = ["CRITICAL", "HIGH", "MEDIUM", "LOW"].map((name) => ({
+    name,
+    count: data.filter((item) => item.severity === name).length,
   }));
-  const ecosystems = [...ecosystemMap.entries()].map(([name, count]) => ({ name, count })).sort((a, b) => b.count - a.count).slice(0, 6);
+  const ecosystemMap = new Map<string, number>();
+  data.forEach((item) =>
+    item.candidates.forEach((candidate) => {
+      const ecosystem = candidate.componentPurl.split(":")[1]?.split("/")[0] ?? "other";
+      ecosystemMap.set(ecosystem, (ecosystemMap.get(ecosystem) ?? 0) + 1);
+    }),
+  );
+  const ecosystems = [...ecosystemMap.entries()]
+    .map(([name, count]) => ({ name, count }))
+    .sort((a, b) => b.count - a.count)
+    .slice(0, 6);
   const riskWeights: Record<string, number> = { CRITICAL: 4, HIGH: 3, MEDIUM: 2, LOW: 1 };
   const open = data.filter((item) => item.triageStatus === "PENDING" || item.triageStatus === "DEFERRED");
   const max = Math.max(data.length * 4, 1);
-  const riskIndex = Math.round((open.reduce((sum, item) => sum + (riskWeights[item.severity ?? "LOW"] ?? 0), 0) / max) * 100);
-  return { severity, ecosystems, openCritical: open.filter((item) => item.severity === "CRITICAL").length, openHigh: open.filter((item) => item.severity === "HIGH").length, riskIndex, latestImport: useDatabase ? await getImportJob() : store.imports[0] ?? null };
+  const riskIndex = Math.round(
+    (open.reduce((sum, item) => sum + (riskWeights[item.severity ?? "LOW"] ?? 0), 0) / max) * 100,
+  );
+  return {
+    severity,
+    ecosystems,
+    openCritical: open.filter((item) => item.severity === "CRITICAL").length,
+    openHigh: open.filter((item) => item.severity === "HIGH").length,
+    riskIndex,
+    latestImport: useDatabase ? await getImportJob() : (store.imports[0] ?? null),
+  };
 }
 
 function makeImport(status: ImportJob["status"], actorEmail: string): ImportJob {
-  return { id: randomUUID(), dataset: "comp.sql + vul.sql", status, retryCount: 0, createdBy: actorEmail, createdAt: new Date().toISOString() };
+  return {
+    id: randomUUID(),
+    dataset: "comp.sql + vul.sql",
+    status,
+    retryCount: 0,
+    createdBy: actorEmail,
+    createdAt: new Date().toISOString(),
+  };
 }
 
 function parseSourceArray(value: string | null) {
@@ -417,14 +622,22 @@ async function enqueueImport(id: string, actorEmail: string) {
       // Fall back to the local worker when QStash is unavailable during a demo.
     }
   }
-  void prepareImportJob(id, actorEmail);
+  await prepareImportJob(id, actorEmail);
 }
 
 export async function createImportJob(actorEmail: string) {
   if (useDatabase) {
     const record = await prisma.importJob.create({ data: { createdBy: actorEmail } });
     const job = serializeImportJob(record);
-    await prisma.auditEvent.create({ data: { action: "IMPORT_QUEUED", actorEmail, targetType: "IMPORT_JOB", targetId: job.id, metadata: { dataset: job.dataset } } });
+    await prisma.auditEvent.create({
+      data: {
+        action: "IMPORT_QUEUED",
+        actorEmail,
+        targetType: "IMPORT_JOB",
+        targetId: job.id,
+        metadata: { dataset: job.dataset },
+      },
+    });
     await enqueueImport(job.id, actorEmail);
     return job;
   }
@@ -439,7 +652,10 @@ export async function prepareImportJob(id: string, actorEmail: string) {
   if (useDatabase) {
     const existing = await prisma.importJob.findUnique({ where: { id } });
     if (!existing) return null;
-    await prisma.importJob.update({ where: { id }, data: { status: "RUNNING", startedAt: new Date(), errorMessage: null } });
+    await prisma.importJob.update({
+      where: { id },
+      data: { status: "RUNNING", startedAt: new Date(), errorMessage: null },
+    });
     try {
       const source = await loadSourceData();
       const summary = importSummary(source);
@@ -448,20 +664,46 @@ export async function prepareImportJob(id: string, actorEmail: string) {
         { entity: "Component", key: source.components[0]?.purl ?? "n/a", change: "来源资料可供预览" },
       ];
       const rows = [
-        ...source.components.map((item) => ({ importJobId: id, entityType: "COMPONENT", stableKey: item.purl, payload: item as unknown as object })),
-        ...source.cves.map((item) => ({ importJobId: id, entityType: "CVE", stableKey: item.cveId, payload: item as unknown as object })),
+        ...source.components.map((item) => ({
+          importJobId: id,
+          entityType: "COMPONENT",
+          stableKey: item.purl,
+          payload: item as unknown as object,
+        })),
+        ...source.cves.map((item) => ({
+          importJobId: id,
+          entityType: "CVE",
+          stableKey: item.cveId,
+          payload: item as unknown as object,
+        })),
       ];
       await prisma.$transaction(async (tx) => {
         await tx.importStageRow.deleteMany({ where: { importJobId: id } });
         if (rows.length) await tx.importStageRow.createMany({ data: rows as any });
-        await tx.importJob.update({ where: { id }, data: { sourceChecksum: source.checksum, summary, sampleDiffs, status: "PREVIEW_READY" } });
+        await tx.importJob.update({
+          where: { id },
+          data: { sourceChecksum: source.checksum, summary, sampleDiffs, status: "PREVIEW_READY" },
+        });
       });
-      await prisma.auditEvent.create({ data: { action: "IMPORT_PREVIEW_READY", actorEmail, targetType: "IMPORT_JOB", targetId: id, metadata: summary } });
+      await prisma.auditEvent.create({
+        data: { action: "IMPORT_PREVIEW_READY", actorEmail, targetType: "IMPORT_JOB", targetId: id, metadata: summary },
+      });
       return serializeImportJob(await prisma.importJob.findUniqueOrThrow({ where: { id } }));
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : "Import failed";
-      await prisma.importJob.update({ where: { id }, data: { status: "FAILED", errorMessage, finishedAt: new Date() } });
-      await prisma.auditEvent.create({ data: { action: "IMPORT_FAILED", actorEmail, targetType: "IMPORT_JOB", targetId: id, metadata: { error: errorMessage } } });
+      await prisma.importJob.update({
+        where: { id },
+        data: { status: "FAILED", errorMessage, finishedAt: new Date() },
+      });
+      await prisma.auditEvent.create({
+        data: {
+          action: "IMPORT_FAILED",
+          actorEmail,
+          targetType: "IMPORT_JOB",
+          targetId: id,
+          metadata: { error: errorMessage },
+        },
+      });
       return serializeImportJob(await prisma.importJob.findUniqueOrThrow({ where: { id } }));
     }
   }
@@ -478,12 +720,24 @@ export async function prepareImportJob(id: string, actorEmail: string) {
       { entity: "Component", key: source.components[0]?.purl ?? "n/a", change: "來源資料可供預覽" },
     ];
     job.status = "PREVIEW_READY";
-    recordAudit({ action: "IMPORT_PREVIEW_READY", actorEmail, targetType: "IMPORT_JOB", targetId: id, metadata: job.summary });
+    recordAudit({
+      action: "IMPORT_PREVIEW_READY",
+      actorEmail,
+      targetType: "IMPORT_JOB",
+      targetId: id,
+      metadata: job.summary,
+    });
   } catch (error) {
     job.status = "FAILED";
     job.errorMessage = error instanceof Error ? error.message : "Import failed";
     job.finishedAt = new Date().toISOString();
-    recordAudit({ action: "IMPORT_FAILED", actorEmail, targetType: "IMPORT_JOB", targetId: id, metadata: { error: job.errorMessage } });
+    recordAudit({
+      action: "IMPORT_FAILED",
+      actorEmail,
+      targetType: "IMPORT_JOB",
+      targetId: id,
+      metadata: { error: job.errorMessage },
+    });
   }
   return job;
 }
@@ -495,7 +749,7 @@ export async function getImportJob(id?: string) {
       : await prisma.importJob.findFirst({ orderBy: { createdAt: "desc" } });
     return record ? serializeImportJob(record) : null;
   }
-  return id ? store.imports.find((item) => item.id === id) ?? null : store.imports[0] ?? null;
+  return id ? (store.imports.find((item) => item.id === id) ?? null) : (store.imports[0] ?? null);
 }
 
 export async function mergeImportJob(id: string, actorEmail: string) {
@@ -514,29 +768,65 @@ export async function mergeImportJob(id: string, actorEmail: string) {
         for (const row of componentRows) {
           const source = row.payload as unknown as ParsedComponent;
           componentsByPurl.set(source.purl, source);
-          await tx.component.upsert({ where: { purl: source.purl }, create: { purl: source.purl, ...componentSourceData(source) }, update: componentSourceData(source) });
+          await tx.component.upsert({
+            where: { purl: source.purl },
+            create: { purl: source.purl, ...componentSourceData(source) },
+            update: componentSourceData(source),
+          });
         }
         for (const row of cveRows) {
           const source = row.payload as unknown as ParsedCve;
-          const saved = await tx.cve.upsert({ where: { cveId: source.cveId }, create: { cveId: source.cveId, ...cveSourceData(source) }, update: cveSourceData(source) });
+          const saved = await tx.cve.upsert({
+            where: { cveId: source.cveId },
+            create: { cveId: source.cveId, ...cveSourceData(source) },
+            update: cveSourceData(source),
+          });
           for (const component of findCandidateComponents(source, [...componentsByPurl.values()])) {
             await tx.cpeCandidate.upsert({
               where: { cveId_componentPurl: { cveId: saved.id, componentPurl: component.purl } },
-              create: { cveId: saved.id, componentPurl: component.purl, matchReason: "CPE vendor/name 前缀匹配，可能关联，需人工确认", confidence: 0.68 },
+              create: {
+                cveId: saved.id,
+                componentPurl: component.purl,
+                matchReason: "CPE vendor/name 前缀匹配，可能关联，需人工确认",
+                confidence: 0.68,
+              },
               update: { matchReason: "CPE vendor/name 前缀匹配，可能关联，需人工确认", confidence: 0.68 },
             });
           }
         }
-        if (componentKeys.length) await tx.component.updateMany({ where: { purl: { notIn: componentKeys } }, data: { sourceMissing: true } });
-        if (cveKeys.length) await tx.cve.updateMany({ where: { cveId: { notIn: cveKeys } }, data: { sourceMissing: true } });
+        if (componentKeys.length) {
+          await tx.component.updateMany({ where: { purl: { notIn: componentKeys } }, data: { sourceMissing: true } });
+        }
+        if (cveKeys.length) {
+          await tx.cve.updateMany({ where: { cveId: { notIn: cveKeys } }, data: { sourceMissing: true } });
+        }
         await tx.importJob.update({ where: { id }, data: { status: "SUCCEEDED", finishedAt: new Date() } });
       });
-      await prisma.auditEvent.create({ data: { action: "IMPORT_MERGED", actorEmail, targetType: "IMPORT_JOB", targetId: id, metadata: job.summary ?? {} } });
+      await prisma.auditEvent.create({
+        data: {
+          action: "IMPORT_MERGED",
+          actorEmail,
+          targetType: "IMPORT_JOB",
+          targetId: id,
+          metadata: job.summary ?? {},
+        },
+      });
       return serializeImportJob(await prisma.importJob.findUniqueOrThrow({ where: { id } }));
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : "Merge failed";
-      await prisma.importJob.update({ where: { id }, data: { status: "FAILED", errorMessage, finishedAt: new Date() } });
-      await prisma.auditEvent.create({ data: { action: "IMPORT_MERGE_FAILED", actorEmail, targetType: "IMPORT_JOB", targetId: id, metadata: { error: errorMessage } } });
+      await prisma.importJob.update({
+        where: { id },
+        data: { status: "FAILED", errorMessage, finishedAt: new Date() },
+      });
+      await prisma.auditEvent.create({
+        data: {
+          action: "IMPORT_MERGE_FAILED",
+          actorEmail,
+          targetType: "IMPORT_JOB",
+          targetId: id,
+          metadata: { error: errorMessage },
+        },
+      });
       return serializeImportJob(await prisma.importJob.findUniqueOrThrow({ where: { id } }));
     }
   }
@@ -552,7 +842,9 @@ export async function mergeImportJob(id: string, actorEmail: string) {
     if (existing) Object.assign(existing, componentMemoryData(item));
     else store.components.push(componentMemoryData(item));
   });
-  store.components.forEach((item) => { item.sourceMissing = !componentKeys.has(item.purl); });
+  store.components.forEach((item) => {
+    item.sourceMissing = !componentKeys.has(item.purl);
+  });
   const existingCves = new Map(store.cves.map((item) => [item.cveId, item]));
   source.cves.forEach((item) => {
     const existing = existingCves.get(item.cveId);
@@ -567,15 +859,39 @@ export async function mergeImportJob(id: string, actorEmail: string) {
     }));
     if (existing) {
       const byPurl = new Map(existing.candidates.map((candidate) => [candidate.componentPurl, candidate]));
-      matchedCandidates.forEach((candidate) => { if (!byPurl.has(candidate.componentPurl)) byPurl.set(candidate.componentPurl, candidate); });
-      Object.assign(existing, { ...cveMemoryData(item), cveId: item.cveId, sourceId: item.sourceId, candidates: [...byPurl.values()] });
-    } else store.cves.push({ id: randomUUID(), cveId: item.cveId, ...cveMemoryData(item), triageStatus: "PENDING", candidates: matchedCandidates, history: [] });
+      matchedCandidates.forEach((candidate) => {
+        if (!byPurl.has(candidate.componentPurl)) byPurl.set(candidate.componentPurl, candidate);
+      });
+      Object.assign(existing, {
+        ...cveMemoryData(item),
+        cveId: item.cveId,
+        sourceId: item.sourceId,
+        candidates: [...byPurl.values()],
+      });
+    } else {
+      store.cves.push({
+        id: randomUUID(),
+        cveId: item.cveId,
+        ...cveMemoryData(item),
+        triageStatus: "PENDING",
+        candidates: matchedCandidates,
+        history: [],
+      });
+    }
   });
-  store.cves.forEach((item) => { item.sourceMissing = !sourceKeys.has(item.cveId); });
+  store.cves.forEach((item) => {
+    item.sourceMissing = !sourceKeys.has(item.cveId);
+  });
   job.summary = importSummary(source);
   job.status = "SUCCEEDED";
   job.finishedAt = new Date().toISOString();
-  recordAudit({ action: "IMPORT_MERGED", actorEmail, targetType: "IMPORT_JOB", targetId: id, metadata: job.summary ?? {} });
+  recordAudit({
+    action: "IMPORT_MERGED",
+    actorEmail,
+    targetType: "IMPORT_JOB",
+    targetId: id,
+    metadata: job.summary ?? {},
+  });
   return job;
 }
 
@@ -583,7 +899,10 @@ export async function retryImportJob(id: string, actorEmail: string) {
   if (useDatabase) {
     const job = await prisma.importJob.findUnique({ where: { id } });
     if (!job) return null;
-    await prisma.importJob.update({ where: { id }, data: { retryCount: { increment: 1 }, status: "QUEUED", errorMessage: null } });
+    await prisma.importJob.update({
+      where: { id },
+      data: { retryCount: { increment: 1 }, status: "QUEUED", errorMessage: null },
+    });
     await enqueueImport(id, actorEmail);
     return getImportJob(id);
   }
@@ -597,7 +916,11 @@ export async function retryImportJob(id: string, actorEmail: string) {
 export async function listAuditEvents() {
   if (useDatabase) {
     const events = await prisma.auditEvent.findMany({ orderBy: { createdAt: "desc" }, take: 100 });
-    return events.map((event) => ({ ...event, createdAt: event.createdAt.toISOString(), metadata: event.metadata as Record<string, unknown> | null }));
+    return events.map((event) => ({
+      ...event,
+      createdAt: event.createdAt.toISOString(),
+      metadata: event.metadata as Record<string, unknown> | null,
+    }));
   }
   return store.auditEvents.slice(0, 100);
 }

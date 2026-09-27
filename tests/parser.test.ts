@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { loadSourceData, parseComponents, parseCves } from "@/app/lib/parser";
+
+import { loadSourceData, parseComponents, parseCves } from "@/libs/parser";
 
 describe("bundled SQL parser", () => {
   it("loads the assignment dataset with stable record counts", async () => {

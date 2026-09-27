@@ -1,4 +1,4 @@
-import type { ComponentRecord, CveRecord } from "./types";
+import type { ComponentRecord, CveRecord } from "@/types/domain";
 
 const now = "2026-09-26T09:00:00.000Z";
 
@@ -90,16 +90,58 @@ const components: ComponentRecord[] = [
 ];
 
 const source = [
-  ["CVE-2026-9999", "Remote code execution in XStream via untrusted XML deserialization", "com.thoughtworks.xstream", "CRITICAL", 9.8, "PENDING"],
+  [
+    "CVE-2026-9999",
+    "Remote code execution in XStream via untrusted XML deserialization",
+    "com.thoughtworks.xstream",
+    "CRITICAL",
+    9.8,
+    "PENDING",
+  ],
   ["CVE-2026-9998", "Path traversal in Apache Commons FileUpload", "commons-fileupload", "HIGH", 8.8, "PENDING"],
   ["CVE-2026-9997", "HTTP/2 rapid reset allows denial of service", "io.netty", "HIGH", 8.1, "CONFIRMED"],
-  ["CVE-2026-9996", "Improper input validation in gson leads to denial of service", "com.google.code.gson", "HIGH", 7.5, "DEFERRED"],
-  ["CVE-2026-9995", "Information disclosure in Jackson Databind", "com.fasterxml.jackson.core", "MEDIUM", 6.1, "PENDING"],
-  ["CVE-2026-9994", "Regular expression denial of service in commons-text", "org.apache.commons", "MEDIUM", 6.0, "FALSE_POSITIVE"],
+  [
+    "CVE-2026-9996",
+    "Improper input validation in gson leads to denial of service",
+    "com.google.code.gson",
+    "HIGH",
+    7.5,
+    "DEFERRED",
+  ],
+  [
+    "CVE-2026-9995",
+    "Information disclosure in Jackson Databind",
+    "com.fasterxml.jackson.core",
+    "MEDIUM",
+    6.1,
+    "PENDING",
+  ],
+  [
+    "CVE-2026-9994",
+    "Regular expression denial of service in commons-text",
+    "org.apache.commons",
+    "MEDIUM",
+    6.0,
+    "FALSE_POSITIVE",
+  ],
   ["CVE-2026-9993", "SSRF in Apache HttpClient", "org.apache.httpcomponents", "MEDIUM", 5.9, "PENDING"],
-  ["CVE-2026-9992", "Insufficient validation in Apache Commons FileUpload", "commons-fileupload", "LOW", 3.4, "FALSE_POSITIVE"],
+  [
+    "CVE-2026-9992",
+    "Insufficient validation in Apache Commons FileUpload",
+    "commons-fileupload",
+    "LOW",
+    3.4,
+    "FALSE_POSITIVE",
+  ],
   ["CVE-2026-9991", "Exposure of sensitive information in log messages", "ch.qos.logback", "LOW", 3.1, "CONFIRMED"],
-  ["CVE-2026-9990", "Improper certificate validation in Apache HttpClient", "org.apache.httpcomponents", "LOW", 2.7, "CONFIRMED"],
+  [
+    "CVE-2026-9990",
+    "Improper certificate validation in Apache HttpClient",
+    "org.apache.httpcomponents",
+    "LOW",
+    2.7,
+    "CONFIRMED",
+  ],
   ["CVE-2026-9989", "Prototype pollution in express middleware", "express", "HIGH", 8.2, "PENDING"],
   ["CVE-2026-9988", "Redirect handling issue in Python requests", "requests", "MEDIUM", 5.4, "DEFERRED"],
 ] as const;

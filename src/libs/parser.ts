@@ -103,9 +103,7 @@ function normalizeValue(value: string): string | null {
 function readInsertRows(sql: string): string[][] {
   const rows: string[][] = [];
   const insertPattern = /INSERT\s+INTO[\s\S]*?VALUES\s*\(/gi;
-  let match: RegExpExecArray | null;
-
-  while ((match = insertPattern.exec(sql))) {
+  while (insertPattern.exec(sql)) {
     const start = insertPattern.lastIndex;
     let index = start;
     let quoted = false;

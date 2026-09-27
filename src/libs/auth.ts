@@ -19,7 +19,7 @@ export function authProviders() {
 
 function supabaseAuthClient() {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
   return supabaseUrl && supabaseKey ? createClient(supabaseUrl, supabaseKey) : null;
 }
 
