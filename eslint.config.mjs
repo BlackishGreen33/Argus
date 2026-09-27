@@ -36,4 +36,12 @@ export default defineConfig([
       "no-console": ["warn", { allow: ["error", "warn"] }],
     },
   },
+  {
+    files: ["src/app/**/*.{ts,tsx}", "src/components/**/*.{ts,tsx}"],
+    ignores: ["src/components/ui/**"],
+    rules: {
+      // Keep self-authored UI modules deep but reviewable; generated shadcn files are exempt.
+      "max-lines": ["error", { max: 650, skipBlankLines: true, skipComments: true }],
+    },
+  },
 ]);
