@@ -12,11 +12,12 @@ import {
   LogOut,
   Menu,
   PanelLeft,
+  RefreshCw,
   Search,
   Settings,
   UserRound,
 } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 
 import { CommandPalette } from "@/components/CommandPalette";
 import { ComponentEditor } from "@/components/components/ComponentEditor";
@@ -40,7 +41,9 @@ import type { DrawerTab, GlobalResult, Page } from "@/types/ui";
 import { request } from "@/utils/http";
 import { statusLabels } from "@/utils/labels";
 
-export function ArgusApp() {
+type ArgusAppProps = Record<string, never>;
+
+export const ArgusApp: React.FC<ArgusAppProps> = () => {
   const queryClient = useQueryClient();
   const [page, setPage] = useState<Page>("triage");
   const [cvePage, setCvePage] = useState(1);
@@ -57,8 +60,6 @@ export function ArgusApp() {
   const [globalResults, setGlobalResults] = useState<GlobalResult[]>([]);
   const [commandOpen, setCommandOpen] = useState(false);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
-  const [isAdmin, setIsAdmin] = useState(false);
-  const [adminEmail, setAdminEmail] = useState("guest@argus.local");
   const [loginOpen, setLoginOpen] = useState(false);
   const [editorOpen, setEditorOpen] = useState(false);
   const [componentEditorOpen, setComponentEditorOpen] = useState(false);
@@ -69,6 +70,7 @@ export function ArgusApp() {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [themeAccent, setThemeAccent] = useState<ThemeAccent>("terracotta");
   const [editingComponent, setEditingComponent] = useState<ComponentRecord | null>(null);
+  const [authActionPending, setAuthActionPending] = useState(false);
   const { notify } = useToast();
   const queries = useArgusQueries({
     query: triageQuery,
@@ -82,20 +84,26 @@ export function ArgusApp() {
   const components = queries.components.data?.data ?? [];
   const overviewData = queries.overview.data?.data ?? null;
   const cveTotal = queries.cves.data?.meta?.total ?? cves.length;
-  const loading =
-    queries.cves.isFetching || queries.components.isFetching || queries.overview.isFetching || queries.user.isFetching;
+  const authPending = queries.user.isPending;
+  const authError = queries.user.error?.message ?? null;
+  const effectiveIsAdmin = queries.user.isSuccess && queries.user.data?.data.role === "admin";
+  const effectiveEmail = queries.user.data?.data.email ?? "guest@argus.local";
+  const pageLoading =
+    page === "triage"
+      ? queries.cves.isFetching
+      : page === "components"
+        ? queries.components.isFetching
+        : queries.overview.isFetching;
+  const loading = pageLoading || authPending;
   const error =
-    [queries.cves.error, queries.components.error, queries.overview.error, queries.user.error].find(Boolean)?.message ??
-    null;
+    page === "triage"
+      ? (queries.cves.error?.message ?? null)
+      : page === "components"
+        ? (queries.components.error?.message ?? null)
+        : (queries.overview.error?.message ?? null);
   const loadData = async () => {
     await queryClient.invalidateQueries({ queryKey: argusQueryKeys.all });
   };
-
-  useEffect(() => {
-    if (!queries.user.data) return;
-    setIsAdmin(queries.user.data.data.role === "admin");
-    setAdminEmail(queries.user.data.data.email);
-  }, [queries.user.data]);
 
   useEffect(() => {
     if (!selected) return;
@@ -186,6 +194,7 @@ export function ArgusApp() {
   };
 
   const login = async (provider: string, email = "admin@argus.local", password = "argus-demo") => {
+    setAuthActionPending(true);
     try {
       if (provider !== "email") {
         const response = await request<{ data: { url: string } }>(`/api/auth/oauth/${provider}`);
@@ -197,22 +206,35 @@ export function ArgusApp() {
         { method: "POST", body: JSON.stringify({ email, password }) },
       );
       if (response.data.accessToken) window.localStorage.setItem("argus_access_token", response.data.accessToken);
-      setIsAdmin(response.data.role === "admin");
-      setAdminEmail(response.data.email);
+      queryClient.setQueryData(argusQueryKeys.user(), { data: response.data });
       setLoginOpen(false);
       notify("已进入 Admin 演示模式");
       await loadData();
     } catch (requestError) {
       notify(requestError instanceof Error ? requestError.message : "登录失败");
+    } finally {
+      setAuthActionPending(false);
     }
   };
 
   const logout = async () => {
-    await request("/api/auth/logout", { method: "POST" }).catch(() => undefined);
-    setIsAdmin(false);
-    window.localStorage.removeItem("argus_access_token");
-    setAdminEmail("guest@argus.local");
-    notify("已退出登录");
+    setAuthActionPending(true);
+    try {
+      await request("/api/auth/logout", { method: "POST" });
+      window.localStorage.removeItem("argus_access_token");
+      queryClient.setQueryData(argusQueryKeys.user(), {
+        data: { email: "guest@argus.local", role: "guest" },
+      });
+      notify("已退出登录");
+    } catch (requestError) {
+      notify(requestError instanceof Error ? requestError.message : "退出登录失败，请重试");
+    } finally {
+      setAuthActionPending(false);
+    }
+  };
+
+  const retryAuth = () => {
+    void queryClient.invalidateQueries({ queryKey: argusQueryKeys.user() });
   };
 
   const pageTitle = page === "triage" ? "Triage" : page === "components" ? "Components" : "Overview";
@@ -352,12 +374,32 @@ export function ArgusApp() {
               onClick={() => setNotificationsOpen(true)}
               count={notificationCount}
             />
-            {isAdmin ? (
-              <button className="profile-chip" onClick={logout} aria-label="退出 Admin">
+            {authPending ? (
+              <div className="profile-chip profile-chip-pending" role="status" aria-label="正在验证登录状态">
+                <span className="avatar">
+                  <UserRound size={15} />
+                </span>
+                <span className="profile-copy">
+                  <strong>验证中</strong>
+                  <span>正在确认登录状态</span>
+                </span>
+              </div>
+            ) : authError ? (
+              <button className="profile-chip profile-chip-error" onClick={retryAuth} aria-label="重试登录状态验证">
+                <span className="avatar">
+                  <RefreshCw size={15} />
+                </span>
+                <span className="profile-copy">
+                  <strong>验证失败</strong>
+                  <span>点击重试</span>
+                </span>
+              </button>
+            ) : effectiveIsAdmin ? (
+              <button className="profile-chip" onClick={logout} disabled={authActionPending} aria-label="退出 Admin">
                 <span className="avatar">AD</span>
                 <span className="profile-copy">
                   <strong>Admin</strong>
-                  <span>{adminEmail}</span>
+                  <span>{effectiveEmail}</span>
                 </span>
                 <LogOut size={15} />
               </button>
@@ -391,6 +433,7 @@ export function ArgusApp() {
                 selectedIds={selectedIds}
                 setSelectedIds={setSelectedIds}
                 loading={loading}
+                authPending={authPending}
                 error={error}
                 pageTitle={pageTitle}
                 pageSubtitle={pageSubtitle}
@@ -428,7 +471,7 @@ export function ArgusApp() {
                 onToast={notify}
                 openCve={openCve}
                 onBatchStatus={batchStatus}
-                isAdmin={isAdmin}
+                isAdmin={effectiveIsAdmin}
                 onLogin={() => setLoginOpen(true)}
                 page={cvePage}
                 pageSize={cvePageSize}
@@ -450,7 +493,8 @@ export function ArgusApp() {
                 query={componentQuery}
                 setQuery={setComponentQuery}
                 loading={loading}
-                isAdmin={isAdmin}
+                authPending={authPending}
+                isAdmin={effectiveIsAdmin}
                 onLogin={() => setLoginOpen(true)}
                 onRefresh={() => {
                   void loadData();
@@ -469,7 +513,8 @@ export function ArgusApp() {
               <OverviewPage
                 data={overviewData}
                 loading={loading}
-                isAdmin={isAdmin}
+                authPending={authPending}
+                isAdmin={effectiveIsAdmin}
                 onLogin={() => setLoginOpen(true)}
                 onToast={notify}
                 onRefresh={loadData}
@@ -484,7 +529,7 @@ export function ArgusApp() {
           cve={selected}
           tab={drawerTab}
           setTab={setDrawerTab}
-          isAdmin={isAdmin}
+          isAdmin={effectiveIsAdmin}
           onLogin={() => setLoginOpen(true)}
           onClose={() => setDrawerOpen(false)}
           onStatus={changeStatus}
@@ -525,7 +570,7 @@ export function ArgusApp() {
           onError={notify}
         />
       )}
-      {loginOpen && <LoginDialog onClose={() => setLoginOpen(false)} onLogin={login} />}
+      {loginOpen && <LoginDialog loading={authActionPending} onClose={() => setLoginOpen(false)} onLogin={login} />}
       <SettingsPanel
         open={settingsOpen}
         onOpenChange={setSettingsOpen}
@@ -542,4 +587,4 @@ export function ArgusApp() {
       />
     </div>
   );
-}
+};

@@ -1,20 +1,20 @@
 "use client";
 
 import { X } from "lucide-react";
-import { useEffect, useState } from "react";
+import React, { useEffect, useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { request } from "@/utils/http";
 
-export function LoginDialog({
-  onClose,
-  onLogin,
-}: {
+interface LoginDialogProps {
+  loading: boolean;
   onClose: () => void;
   onLogin: (provider: string, email?: string, password?: string) => void;
-}) {
+}
+
+export const LoginDialog: React.FC<LoginDialogProps> = ({ loading, onClose, onLogin }) => {
   const [email, setEmail] = useState("admin@argus.local");
   const [password, setPassword] = useState("argus-demo");
   const [providers, setProviders] = useState({ email: true, google: false, github: false });
@@ -58,18 +58,20 @@ export function LoginDialog({
                 required
               />
             </div>
-            <Button type="submit">使用邮箱登录</Button>
+            <Button type="submit" disabled={loading}>
+              {loading ? "登录中…" : "使用邮箱登录"}
+            </Button>
           </form>
         )}
         <div className="divider">或使用已配置的登录方式</div>
         <div className="social-row">
           {providers.google && (
-            <Button variant="outline" onClick={() => onLogin("google", email)}>
+            <Button variant="outline" disabled={loading} onClick={() => onLogin("google", email)}>
               Google
             </Button>
           )}
           {providers.github && (
-            <Button variant="outline" onClick={() => onLogin("github", email)}>
+            <Button variant="outline" disabled={loading} onClick={() => onLogin("github", email)}>
               GitHub
             </Button>
           )}
@@ -87,4 +89,4 @@ export function LoginDialog({
       </DialogContent>
     </Dialog>
   );
-}
+};

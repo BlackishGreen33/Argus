@@ -56,6 +56,10 @@ export function useArgusQueries(params: {
   const user = useQuery({
     queryKey: argusQueryKeys.user(),
     queryFn: () => request<UserResponse>("/api/auth/me"),
+    staleTime: 60_000,
+    gcTime: 5 * 60_000,
+    retry: 1,
+    refetchOnWindowFocus: false,
   });
 
   return { cves, components, overview, user };
