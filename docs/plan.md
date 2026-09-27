@@ -18,9 +18,9 @@ Argus 是一个面向 DevSecOps／安全审查人员的漏洞分流工作台。�
 | 要求 | 实现 | 验收证据 |
 | --- | --- | --- |
 | 前端 | Next.js App Router、TailwindCSS、响应式 Triage／Components／Overview | 页面、Playwright smoke |
-| 后端 | Hono REST API，统一 `/api/*` 路由 | `app/api/[[...route]]/route.ts`、OpenAPI |
+| 后端 | Hono REST API，统一 `/api/*` 路由 | `src/app/api/[[...route]]/route.ts`、OpenAPI |
 | 数据库 | Supabase Postgres、Prisma 7 migration | `prisma/schema.prisma`、`prisma/migrations` |
-| HTTP 通信 | UI 使用 fetch 调用 REST，浏览器不直连数据库 | `ArgusApp.tsx`、API demo 命令 |
+| HTTP 通信 | UI 使用 fetch 调用 REST，浏览器不直连数据库 | `src/components/ArgusApp.tsx`、API demo 命令 |
 | CVE 查询 | CVE ID、标题、描述、Component／PURL 关键字与状态／severity 参数 | `GET /api/cves`、`GET /api/search` |
 | CVE 修改 | 标题、描述、severity、CVSS、CWE、affected versions | `PATCH /api/cves/:cveId` + Zod |
 | CVE 删除 | Admin 确认后硬删；删除前写 `CVE_DELETED` | store DB branch、History／AuditEvent |
@@ -80,7 +80,7 @@ flowchart LR
 | Web | Next.js 16 + Turbopack | 官方构建链、Vercel 部署路径短 | 不同时引入 Rspack／Rsbuild；除非出现明确 bundler 需求 |
 | UI | TailwindCSS、shadcn 风格、Rare UI／Kibo／Cult 参考 | 允许保留品味而不锁死组件库 | 首版自有 token，避免多个 UI 库互相覆盖 |
 | API | Hono + Zod + OpenAPI JSON | 路由轻、校验与文档同源 | Scalar 可在后续替换 `/api/docs` 静态页 |
-| DB | Supabase Postgres + Prisma 7.10 | SQL 资料适合关系模型；迁移、事务、upsert 清晰 | 免费项目 500 MB，闲置可能暂停；可迁移到兼容 Postgres |
+| DB | Supabase Postgres + Prisma 7.10 + RLS | SQL 资料适合关系模型；迁移、事务、upsert 清晰；业务表不对 anon 开放 | 免费项目 500 MB，闲置可能暂停；可迁移到兼容 Postgres |
 | Auth | Supabase Auth | Email／OAuth provider 配置统一 | 未配置 OAuth 不显示按钮；Demo mode 仍可离线演示 |
 | Queue | Upstash QStash + Redis | 延迟、重试、签名验证；导入可观察 | QStash 免费层每日 1000 条；无凭证回退本地 worker |
 | Deploy | Vercel Hobby | Next.js 零配置公开展示 | 仅个人／非商业演示，无生产 SLA |
@@ -104,13 +104,7 @@ Guest 可以执行 GET：CVE、Component、Overview、Search、AuditEvent（展�
 
 ## 9. 测试、CI、migration 与部署
 
-GitHub Actions 顺序：
-
-1. Node 24 + pnpm 12.6.0。
-2. `pnpm install --frozen-lockfile`。
-3. `pnpm lint`、`pnpm typecheck`、`pnpm test`。
-4. 安装 Playwright Chromium，执行 `pnpm test:e2e`。
-5. `pnpm db:generate`、`pnpm prisma validate`、`pnpm build`。
+GitHub Actions 拆成六个可独立定位的 jobs：Lint and format、Typecheck、Unit tests、Prisma schema and migrations、Production build、Playwright E2E；每个 job 都从 Node 24 + pnpm 12.6.0 的干净环境开始。
 
 部署前把 Vercel 环境变量分为公开 Supabase URL／anon key 与服务器端 DATABASE／QStash signing key；生产设置 `DEMO_MODE=false`。公开展示默认保留 Guest 浏览入口，Admin 通过 Supabase Auth 登录。
 
