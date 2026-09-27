@@ -609,7 +609,11 @@ function cveMemoryData(source: ParsedCve) {
 }
 
 function importSummary(source: Awaited<ReturnType<typeof loadSourceData>>) {
-  return { components: source.components.length, cves: source.cves.length, candidates: source.cves.length };
+  const candidates = source.cves.reduce(
+    (count, cve) => count + findCandidateComponents(cve, source.components).length,
+    0,
+  );
+  return { components: source.components.length, cves: source.cves.length, candidates };
 }
 
 async function enqueueImport(id: string, actorEmail: string) {
@@ -718,7 +722,7 @@ export async function prepareImportJob(id: string, actorEmail: string) {
   try {
     const source = await loadSourceData();
     job.sourceChecksum = source.checksum;
-    job.summary = { components: source.components.length, cves: source.cves.length, candidates: source.cves.length };
+    job.summary = importSummary(source);
     job.sampleDiffs = [
       { entity: "CVE", key: source.cves[0]?.cveId ?? "n/a", change: "来源资料可供预览" },
       { entity: "Component", key: source.components[0]?.purl ?? "n/a", change: "来源资料可供预览" },

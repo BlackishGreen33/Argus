@@ -310,7 +310,7 @@ a {
   margin: 27px auto 0;
 }
 .eyebrow {
-  color: var(--ok);
+  color: var(--accent);
   letter-spacing: 0.13em;
   text-transform: uppercase;
   font-size: 11px;
@@ -623,7 +623,7 @@ a {
   font-weight: 500;
 }
 .drawer-cve {
-  color: var(--ok);
+  color: var(--accent);
   font-weight: 700;
   letter-spacing: 0.04em;
 }
@@ -819,6 +819,7 @@ a {
 }
 .editor {
   width: min(920px, 100%);
+  max-width: min(920px, 100%);
   max-height: calc(100vh - 44px);
   overflow: auto;
   background: var(--surface);
@@ -841,13 +842,14 @@ a {
 }
 .editor-form {
   display: grid;
-  grid-template-columns: 1fr 280px;
-  gap: 20px;
+  grid-template-columns: repeat(auto-fit, minmax(min(280px, 100%), 1fr));
+  gap: 20px 18px;
   padding: 24px 32px 32px;
 }
 .field {
   display: grid;
-  gap: 7px;
+  min-width: 0;
+  gap: 8px;
 }
 .field.full {
   grid-column: 1 / -1;
@@ -855,6 +857,7 @@ a {
 .field label {
   font-weight: 650;
   font-size: 12px;
+  line-height: 1.35;
 }
 .field small {
   color: var(--ink-faint);
@@ -883,7 +886,7 @@ a {
   display: flex;
   justify-content: end;
   gap: 9px;
-  padding-top: 8px;
+  padding-top: 16px;
   border-top: 1px solid var(--line);
 }
 

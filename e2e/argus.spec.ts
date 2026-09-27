@@ -100,3 +100,76 @@ test("notification panel and theme controls remain reversible", async ({ page })
   await sidebarSwitch.click();
   await expect(sidebarSwitch).toHaveAttribute("aria-checked", "true");
 });
+
+test("reading notifications clears the unread badge", async ({ page }) => {
+  await page.route("**/api/audit-events", async (route) => {
+    await route.fulfill({
+      contentType: "application/json",
+      body: JSON.stringify({
+        data: [
+          {
+            id: "event-1",
+            action: "STATUS_CHANGED",
+            cveId: "CVE-2026-9999",
+            createdAt: "2026-09-26T00:00:00.000Z",
+          },
+          {
+            id: "event-2",
+            action: "IMPORT_MERGED",
+            targetId: "import-1",
+            createdAt: "2026-09-26T01:00:00.000Z",
+          },
+        ],
+      }),
+    });
+  });
+  await page.goto("/");
+  await expect(page.getByRole("button", { name: "通知，2 条" })).toBeVisible();
+  await page.getByRole("button", { name: /通知/ }).click();
+  const notificationPanel = page.getByRole("dialog", { name: "通知中心" });
+  await expect(notificationPanel).toContainText("状态发生变化");
+  await notificationPanel.getByRole("button", { name: "关闭面板" }).click();
+  await expect(page.getByRole("button", { name: /通知/ })).toHaveCount(1);
+  await expect(page.getByRole("button", { name: "通知，2 条" })).toHaveCount(0);
+});
+
+test("theme accent updates eyebrow text", async ({ page }) => {
+  await page.goto("/");
+  await page.getByRole("button", { name: "Components" }).click();
+  const eyebrow = page.getByText("供应链证据", { exact: true });
+  await page.getByRole("button", { name: "设置" }).click();
+  const settings = page.getByRole("dialog", { name: "设置" });
+  await settings.getByRole("radio", { name: "陶土红" }).click();
+  await expect.poll(() => eyebrow.evaluate((element) => getComputedStyle(element).color)).toBe("rgb(168, 77, 50)");
+  await settings.getByRole("radio", { name: "橄榄绿" }).click();
+  await expect.poll(() => eyebrow.evaluate((element) => getComputedStyle(element).color)).toBe("rgb(95, 118, 95)");
+});
+
+test("component editor keeps fields readable on a narrow viewport", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto("/");
+  await page.getByRole("button", { name: "Components" }).click();
+  await page.getByLabel("登录 Admin").click();
+  await page.getByRole("dialog", { name: "登录 Argus" }).getByRole("button", { name: "使用邮箱登录" }).click();
+  await page.getByRole("button", { name: "新增组件" }).click();
+  const editor = page.getByRole("dialog", { name: "新增组件" });
+  await expect(editor).toBeVisible();
+  const fieldRows = await editor
+    .locator(".field:not(.full)")
+    .evaluateAll((fields) =>
+      fields.map((field) => ({ width: field.getBoundingClientRect().width, y: field.getBoundingClientRect().y })),
+    );
+  expect(fieldRows.every(({ width }) => width >= 300)).toBe(true);
+  expect(new Set(fieldRows.map(({ y }) => y)).size).toBe(fieldRows.length);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+  await page.setViewportSize({ width: 1440, height: 1000 });
+  const desktopEditor = await editor.boundingBox();
+  expect(desktopEditor?.width ?? 0).toBeGreaterThan(800);
+  const desktopRows = await editor
+    .locator(".field:not(.full)")
+    .evaluateAll((fields) =>
+      fields.map((field) => ({ x: field.getBoundingClientRect().x, y: field.getBoundingClientRect().y })),
+    );
+  expect(desktopRows[0]?.y).toBeCloseTo(desktopRows[1]?.y ?? 0, 0);
+  expect(desktopRows[0]?.x).toBeLessThan(desktopRows[1]?.x ?? 0);
+});
