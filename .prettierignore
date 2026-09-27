@@ -1,0 +1,10 @@
+.next
+node_modules
+src/generated
+playwright-report
+test-results
+public/*.png
+data/source/*.sql
+pnpm-lock.yaml
+*.md
+.env*
