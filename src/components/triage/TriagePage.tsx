@@ -119,7 +119,12 @@ export const TriagePage: React.FC<TriagePageProps> = ({
             aria-label="筛选当前漏洞列表"
           />
         </div>
-        <Select value={severityFilter || undefined} placeholder="严重度" onValueChange={onSeverityChange}>
+        <Select
+          value={severityFilter || undefined}
+          placeholder="严重度"
+          aria-label="严重度"
+          onValueChange={onSeverityChange}
+        >
           <SelectTrigger className="filter-select" aria-label="严重度">
             <SelectValue />
           </SelectTrigger>
@@ -130,7 +135,12 @@ export const TriagePage: React.FC<TriagePageProps> = ({
             <SelectItem value="LOW">低</SelectItem>
           </SelectContent>
         </Select>
-        <Select value={ecosystemFilter || undefined} placeholder="生态系" onValueChange={onEcosystemChange}>
+        <Select
+          value={ecosystemFilter || undefined}
+          placeholder="生态系"
+          aria-label="生态系"
+          onValueChange={onEcosystemChange}
+        >
           <SelectTrigger className="filter-select" aria-label="生态系">
             <SelectValue />
           </SelectTrigger>
@@ -141,7 +151,12 @@ export const TriagePage: React.FC<TriagePageProps> = ({
             <SelectItem value="golang">Go</SelectItem>
           </SelectContent>
         </Select>
-        <Select value={statusFilter || undefined} placeholder="状态" onValueChange={onStatusFilterChange}>
+        <Select
+          value={statusFilter || undefined}
+          placeholder="状态"
+          aria-label="状态"
+          onValueChange={onStatusFilterChange}
+        >
           <SelectTrigger className="filter-select" aria-label="状态">
             <SelectValue />
           </SelectTrigger>
@@ -310,7 +325,11 @@ export const TriagePage: React.FC<TriagePageProps> = ({
         </span>
         <div className="pagination-tools">
           <span>每页显示</span>
-          <Select value={String(pageSize)} onValueChange={(value) => onPageSizeChange(Number(value))}>
+          <Select
+            value={String(pageSize)}
+            aria-label="每页显示数量"
+            onValueChange={(value) => onPageSizeChange(Number(value))}
+          >
             <SelectTrigger className="page-size-select" aria-label="每页显示数量">
               <SelectValue />
             </SelectTrigger>

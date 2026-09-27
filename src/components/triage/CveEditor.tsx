@@ -81,7 +81,11 @@ export const CveEditor: React.FC<CveEditorProps> = ({ cve, onClose, onSaved }) =
           </div>
           <div className="field">
             <label htmlFor="cve-severity">严重度</label>
-            <Select value={form.severity} onValueChange={(value) => setForm({ ...form, severity: value })}>
+            <Select
+              value={form.severity}
+              aria-label="严重度"
+              onValueChange={(value) => setForm({ ...form, severity: value })}
+            >
               <SelectTrigger id="cve-severity" aria-label="严重度">
                 <SelectValue />
               </SelectTrigger>

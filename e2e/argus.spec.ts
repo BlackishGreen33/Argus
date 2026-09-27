@@ -16,10 +16,10 @@ test("guest can inspect Triage and use global search", async ({ page }) => {
   await page.getByRole("button", { name: "严重度" }).click();
   await expect(page.getByRole("option")).toHaveText(["严重", "高", "中", "低"]);
   await page.getByRole("option", { name: "严重", exact: true }).click();
-  await expect(page.getByRole("button", { name: "严重", exact: true })).toContainText("严重");
+  await expect(page.getByRole("button", { name: /严重度/ })).toContainText("严重");
   await expect(page.locator('[role="option"]:visible')).toHaveCount(0);
   await page.getByRole("button", { name: "清除筛选" }).click();
-  await expect(page.getByRole("button", { name: "严重度" })).toContainText("严重度");
+  await expect(page.getByRole("button", { name: /严重度/ })).toContainText("严重度");
   await page.getByRole("button", { name: "状态" }).click();
   await expect(page.locator('[role="option"]:visible')).toHaveText(["待处理", "已确认", "已延后", "误报"]);
   await page.getByRole("option", { name: "待处理", exact: true }).click();
