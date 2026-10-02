@@ -87,7 +87,7 @@ pnpm db:generate
 pnpm dev
 ```
 
-打开 <http://localhost:3000>。默认 `DEMO_MODE=true`，不配置数据库即可浏览 6 个 Component 与 12 条示范 CVE。示范条目用于体验交互，不作为真实安全公告。`data/source/` 另含 398 个 Component 与 1000 条 CVE 的导入数据。
+打开 <http://localhost:3000>。复制 `.env.example` 后会使用 `DEMO_MODE=true`，不配置数据库即可浏览 6 个 Component 与 12 条示范 CVE。示范条目用于体验交互，不作为真实安全公告。`data/source/` 另含 398 个 Component 与 1000 条 CVE 的导入数据。
 
 > [!TIP]
 > Demo mode 使用内存数据与演示登录，修改会在服务重启后恢复。需要持久化和真实 Admin 权限时，再配置 Supabase 并设置 `DEMO_MODE=false`。
@@ -139,7 +139,7 @@ ADMIN_EMAIL=admin@argus.local
 | `QSTASH_CURRENT_SIGNING_KEY` | 需要签名校验 | 校验 `/api/import-worker` 请求 | Upstash Console → QStash → Signing Keys |
 | `QSTASH_NEXT_SIGNING_KEY` | 轮换签名密钥 | QStash 密钥轮换时的下一把 key | Upstash Console → QStash → Signing Keys |
 | `QSTASH_URL` | Vercel 部署后推荐 | 明确指定 `https://你的域名/api/import-worker` | Vercel 部署地址或自定义域名 |
-| `UPSTASH_REDIS_REST_URL`、`UPSTASH_REDIS_REST_TOKEN` | 当前不需要 | 现有页面与导入流程没有调用 Redis，可留空 | 若以后启用：Upstash → Redis → 数据库 → REST API |
+| `UPSTASH_REDIS_REST_URL`、`UPSTASH_REDIS_REST_TOKEN` | 可选 | 为 CVE、Component、全局搜索、Overview 与通知事件 API 提供短 TTL 读缓存；未配置时直接访问数据库／内存数据 | Upstash → Redis → REST API |
 
 `.env.local` 的真实环境示例：
 
@@ -194,7 +194,7 @@ QSTASH_URL="https://your-project.vercel.app/api/import-worker"
 3. 云端 worker 需要 `DEMO_MODE=false` 和已迁移的 Postgres，才能跨请求保存任务状态。回调必须能被 QStash 公网访问；本机 `localhost` 不可作为云端回调。
 4. 在 Vercel 加入这四个变量并重新部署。没有 QStash 时，本地常驻服务可执行内置 worker；Serverless 部署请配置 QStash，不依赖进程内后台任务的生命周期。
 
-Redis 当前没有被业务流程调用，无需另建 Redis 数据库或提供 Redis token。
+Redis 用于读多写少的 API 缓存，TTL 为秒级；CVE、Component、候选、通知与导入等写入会主动清除缓存。Redis 连接或写入失败时会自动回退到数据库／内存数据，不会阻塞页面读取，因此本地展示仍可不配置。
 
 > [!TIP]
 > QStash 与 Redis 都是可选项。缺少 QStash 时，导入任务会在当前请求中执行本地 worker fallback；配置 QStash 后才启用延迟、重试和签名校验。
@@ -274,12 +274,15 @@ CI 使用独立 jobs 分别执行 Lint and format、Typecheck、Unit tests、Pri
 ```text
 Argus/
 ├── src/
-│   ├── app/                         # Next layout、页面与 Hono API
+│   ├── app/                         # Next layout、页面与 API route adapter
+│   ├── client/                      # Axios、TanStack Query、Jotai 与客户端 hooks
 │   ├── components/                  # 页面切片与可交互 UI
-│   ├── hooks/                       # 快捷键、Toast 等客户端交互
-│   ├── libs/                        # parser、store、auth、Prisma、QStash
+│   ├── constants/                   # 状态、分页、主题与产品常量
+│   ├── server/                      # Hono API、按領域 service、parser、Prisma、Redis、QStash
+│   │   ├── api/routes/              # auth、CVE、Component、Import、system handlers
+│   │   └── services/                # domain service；store.service.ts 僅作相容 façade
 │   ├── types/                       # domain 与 UI contract
-│   └── utils/                       # HTTP、格式化与文案映射
+│   └── utils/                       # 格式化与文案映射
 ├── data/source/                     # SQL 来源数据
 ├── prisma/                          # schema、migration、seed
 ├── public/argus-screenshot.png      # 实际运行截图
@@ -303,6 +306,8 @@ Argus/
 
 - [Next.js 16](https://nextjs.org/docs/app/guides/upgrading/version-16)
 - [Hono for Next.js](https://hono.dev/docs/getting-started/nextjs)
+- [Jotai](https://jotai.org/)：跨页客户端状态
+- [Axios](https://axios-http.com/)：统一浏览器 API client、取消与错误处理
 - [Prisma 7 系统要求](https://www.prisma.io/docs/orm/v7/reference/system-requirements)
 - [Supabase + Prisma](https://supabase.com/docs/guides/database/prisma)
 - [WCAG 2.2](https://www.w3.org/TR/wcag/)
