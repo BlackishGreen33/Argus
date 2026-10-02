@@ -12,6 +12,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { useI18n } from "@/i18n";
 
 interface ConfirmActionDialogProps {
   open: boolean;
@@ -26,10 +27,11 @@ export const ConfirmActionDialog: React.FC<ConfirmActionDialogProps> = ({
   open,
   title,
   description,
-  confirmLabel = "确认删除",
+  confirmLabel,
   onOpenChange,
   onConfirm,
 }) => {
+  const { t } = useI18n();
   return (
     <AlertDialog open={open} onOpenChange={onOpenChange}>
       <AlertDialogContent>
@@ -38,9 +40,9 @@ export const ConfirmActionDialog: React.FC<ConfirmActionDialogProps> = ({
           <AlertDialogDescription>{description}</AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
-          <AlertDialogCancel>取消</AlertDialogCancel>
+          <AlertDialogCancel>{t("action.cancel")}</AlertDialogCancel>
           <AlertDialogAction variant="destructive" onClick={onConfirm}>
-            {confirmLabel}
+            {confirmLabel ?? t("action.confirmDelete")}
           </AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>

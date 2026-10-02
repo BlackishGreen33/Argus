@@ -9,17 +9,20 @@ interface NavButtonProps {
   active?: boolean;
   icon: ReactNode;
   label: string;
-  onClick: () => void;
+  onClick?: () => void;
+  href?: string;
   collapsed?: boolean;
 }
 
-export const NavButton: React.FC<NavButtonProps> = ({ active, icon, label, onClick, collapsed = false }) => {
-  const button = (
-    <button
-      className={`nav-button ${active ? "active" : ""} ${collapsed ? "collapsed" : ""}`}
-      onClick={onClick}
-      aria-label={label}
-    >
+export const NavButton: React.FC<NavButtonProps> = ({ active, icon, label, onClick, href, collapsed = false }) => {
+  const className = `nav-button ${active ? "active" : ""} ${collapsed ? "collapsed" : ""}`;
+  const button = href ? (
+    <a className={className} href={href} target="_blank" rel="noreferrer" aria-label={label}>
+      {icon}
+      <span>{label}</span>
+    </a>
+  ) : (
+    <button className={className} onClick={onClick} aria-label={label}>
       {icon}
       <span>{label}</span>
     </button>

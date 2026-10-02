@@ -1,6 +1,6 @@
 "use client";
 
-import { AlertTriangle, Check, FileSearch, FilterX, Lock, Search } from "lucide-react";
+import { AlertTriangle, Check, FileSearch, FilterX, Lock, Search, X } from "lucide-react";
 import type React from "react";
 
 import { Badge } from "@/components/ui/badge";
@@ -26,11 +26,17 @@ import {
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { CVE_PAGE_SIZES, CVSS_MAX_SCORE } from "@/constants/app";
+import { useI18n } from "@/i18n";
 import type { CveRecord, TriageStatus } from "@/types/domain";
 import { formatDate, statusClass } from "@/utils/format";
-import { severityLabels, statusLabels } from "@/utils/labels";
+import { severityLabelKeys, statusLabelKeys } from "@/utils/labels";
 
-const PAGE_SIZES = [10, 20, 50];
+const cvssProgress = (score: number | null | undefined) => {
+  const numericScore = Number(score);
+  const normalizedScore = Number.isFinite(numericScore) ? Math.min(Math.max(numericScore, 0), CVSS_MAX_SCORE) : 0;
+  return `${Math.round((normalizedScore / CVSS_MAX_SCORE) * 100)}%`;
+};
 
 interface TriagePageProps {
   cves: CveRecord[];
@@ -91,10 +97,14 @@ export const TriagePage: React.FC<TriagePageProps> = ({
   onPageChange,
   onPageSizeChange,
 }) => {
+  const { locale, t } = useI18n();
   const allSelected = cves.length > 0 && cves.every((item) => selectedIds.includes(item.cveId));
+  const columnCount = isAdmin ? 7 : 6;
+  const hasActiveFilters = Boolean(localQuery.trim() || severityFilter || statusFilter || ecosystemFilter);
   const pageCount = Math.max(1, Math.ceil(total / pageSize));
   const pages = Array.from({ length: Math.min(pageCount, 5) }, (_, index) => index + 1);
   const toggleRow = (cveId: string, checked: boolean) => {
+    if (!isAdmin) return;
     setSelectedIds(checked ? [...new Set([...selectedIds, cveId])] : selectedIds.filter((id) => id !== cveId));
   };
 
@@ -102,125 +112,140 @@ export const TriagePage: React.FC<TriagePageProps> = ({
     <>
       <div className="page-heading">
         <div>
-          <div className="eyebrow">漏洞管理</div>
-          <h1 className="serif">{pageTitle}</h1>
+          <h1 className="display-title">{pageTitle}</h1>
           <p>{pageSubtitle}</p>
         </div>
-        <div className="heading-note">更小的风险，创造更具韧性的未来。</div>
       </div>
 
       <div className="filter-row">
         <div className="local-search">
           <Search size={17} aria-hidden="true" />
           <Input
+            name="triage-search"
+            autoComplete="off"
             value={localQuery}
             onChange={(event) => setLocalQuery(event.target.value)}
-            placeholder="筛选 CVE ID、组件或关键字…"
-            aria-label="筛选当前漏洞列表"
+            placeholder={t("search.local.cve.placeholder")}
+            aria-label={t("search.local.cve.label")}
           />
+          {localQuery && (
+            <button
+              type="button"
+              className="input-clear"
+              aria-label={t("search.clear.cve")}
+              onMouseDown={(event) => event.preventDefault()}
+              onClick={() => setLocalQuery("")}
+            >
+              <X size={15} aria-hidden="true" />
+            </button>
+          )}
         </div>
         <Select
           value={severityFilter || undefined}
-          placeholder="严重度"
-          aria-label="严重度"
+          placeholder={t("filter.severity")}
+          aria-label={t("filter.severity")}
           onValueChange={onSeverityChange}
         >
-          <SelectTrigger className="filter-select" aria-label="严重度">
+          <SelectTrigger className="filter-select" aria-label={t("filter.severity")}>
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="CRITICAL">严重</SelectItem>
-            <SelectItem value="HIGH">高</SelectItem>
-            <SelectItem value="MEDIUM">中</SelectItem>
-            <SelectItem value="LOW">低</SelectItem>
+            <SelectItem value="CRITICAL">{t("severity.critical")}</SelectItem>
+            <SelectItem value="HIGH">{t("severity.high")}</SelectItem>
+            <SelectItem value="MEDIUM">{t("severity.medium")}</SelectItem>
+            <SelectItem value="LOW">{t("severity.low")}</SelectItem>
           </SelectContent>
         </Select>
         <Select
           value={ecosystemFilter || undefined}
-          placeholder="生态系"
-          aria-label="生态系"
+          placeholder={t("filter.ecosystem")}
+          aria-label={t("filter.ecosystem")}
           onValueChange={onEcosystemChange}
         >
-          <SelectTrigger className="filter-select" aria-label="生态系">
+          <SelectTrigger className="filter-select" aria-label={t("filter.ecosystem")}>
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="maven">Maven</SelectItem>
-            <SelectItem value="npm">npm</SelectItem>
-            <SelectItem value="pypi">PyPI</SelectItem>
-            <SelectItem value="golang">Go</SelectItem>
+            <SelectItem value="maven">{t("components.type.maven")}</SelectItem>
+            <SelectItem value="npm">{t("components.type.npm")}</SelectItem>
+            <SelectItem value="pypi">{t("components.type.pypi")}</SelectItem>
+            <SelectItem value="golang">{t("components.type.golang")}</SelectItem>
           </SelectContent>
         </Select>
         <Select
           value={statusFilter || undefined}
-          placeholder="状态"
-          aria-label="状态"
+          placeholder={t("filter.status")}
+          aria-label={t("filter.status")}
           onValueChange={onStatusFilterChange}
         >
-          <SelectTrigger className="filter-select" aria-label="状态">
+          <SelectTrigger className="filter-select" aria-label={t("filter.status")}>
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="PENDING">待处理</SelectItem>
-            <SelectItem value="CONFIRMED">已确认</SelectItem>
-            <SelectItem value="DEFERRED">已延后</SelectItem>
-            <SelectItem value="FALSE_POSITIVE">误报</SelectItem>
+            <SelectItem value="PENDING">{t("status.pending")}</SelectItem>
+            <SelectItem value="CONFIRMED">{t("status.confirmed")}</SelectItem>
+            <SelectItem value="DEFERRED">{t("status.deferred")}</SelectItem>
+            <SelectItem value="FALSE_POSITIVE">{t("status.falsePositive")}</SelectItem>
           </SelectContent>
         </Select>
-        <Button variant="outline" onClick={onClearFilters} className="filter-clear">
-          <FilterX size={15} aria-hidden="true" /> 清除筛选
+        <Button variant="outline" onClick={onClearFilters} className="filter-clear" disabled={!hasActiveFilters}>
+          <FilterX size={15} aria-hidden="true" /> {t("filter.clear")}
         </Button>
       </div>
 
       {!authPending && !isAdmin && (
         <div className="batch-bar">
           <Lock size={15} aria-hidden="true" />
-          <span>当前为访客浏览模式，登录后可修改、批量处理与删除。</span>
+          <span>{t("triage.guestBanner")}</span>
           <Button size="sm" onClick={onLogin}>
-            登录 Admin
+            {t("auth.guest.login")}
           </Button>
         </div>
       )}
       {selectedIds.length > 0 && isAdmin && (
         <div className="batch-bar">
           <Check size={15} aria-hidden="true" />
-          <span>已选择 {selectedIds.length} 条漏洞</span>
+          <span>{t("triage.batchSelected", { count: selectedIds.length })}</span>
           <Button size="sm" variant="outline" onClick={() => onBatchStatus("CONFIRMED")}>
-            批量确认
+            {t("triage.batch.confirmed")}
           </Button>
           <Button size="sm" variant="outline" onClick={() => onBatchStatus("DEFERRED")}>
-            批量延后
+            {t("triage.batch.deferred")}
           </Button>
           <Button size="sm" variant="outline" onClick={() => onBatchStatus("FALSE_POSITIVE")}>
-            标记误报
+            {t("triage.batch.falsePositive")}
           </Button>
         </div>
       )}
 
       <div className="table-shell" aria-busy={loading} aria-live="polite">
-        <Table className="argus-table min-w-[880px]">
+        <Table className="argus-table" data-selection-enabled={isAdmin ? "true" : "false"}>
           <TableHeader>
             <TableRow>
-              <TableHead className="w-10">
-                <Checkbox
-                  checked={allSelected ? true : selectedIds.length > 0 ? "indeterminate" : false}
-                  onCheckedChange={(checked) => setSelectedIds(checked === true ? cves.map((item) => item.cveId) : [])}
-                  aria-label="全选当前页"
-                />
-              </TableHead>
-              <TableHead className="w-24">严重度</TableHead>
-              <TableHead className="w-44">CVE ID</TableHead>
-              <TableHead>标题</TableHead>
-              <TableHead className="w-24">CVSS v3.1</TableHead>
-              <TableHead className="w-32">最后更新</TableHead>
-              <TableHead className="w-24">状态</TableHead>
+              {isAdmin && (
+                <TableHead className="w-10">
+                  <Checkbox
+                    checked={allSelected ? true : selectedIds.length > 0 ? "indeterminate" : false}
+                    onCheckedChange={(checked) =>
+                      setSelectedIds(checked === true ? cves.map((item) => item.cveId) : [])
+                    }
+                    aria-label={t("triage.selectAll")}
+                  />
+                </TableHead>
+              )}
+              <TableHead className="w-24">{t("triage.column.severity")}</TableHead>
+              <TableHead className="w-44">{t("triage.column.cve")}</TableHead>
+              <TableHead>{t("triage.column.title")}</TableHead>
+              <TableHead className="w-24">{t("triage.column.cvss")}</TableHead>
+              <TableHead className="w-32">{t("triage.column.updated")}</TableHead>
+              <TableHead className="w-24">{t("triage.column.status")}</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {loading &&
               Array.from({ length: pageSize }, (rowKey, rowIndex) => (
                 <TableRow key={`loading-${rowIndex}`} className="h-16">
-                  {Array.from({ length: 7 }, (cellKey, cellIndex) => (
+                  {Array.from({ length: columnCount }, (cellKey, cellIndex) => (
                     <TableCell key={cellIndex}>
                       <Skeleton className="h-4 w-full" />
                     </TableCell>
@@ -229,7 +254,7 @@ export const TriagePage: React.FC<TriagePageProps> = ({
               ))}
             {!loading && error && (
               <TableRow>
-                <TableCell colSpan={7}>
+                <TableCell colSpan={columnCount}>
                   <div className="empty-state">
                     <AlertTriangle size={18} /> {error}
                   </div>
@@ -238,9 +263,9 @@ export const TriagePage: React.FC<TriagePageProps> = ({
             )}
             {!loading && !error && !cves.length && (
               <TableRow>
-                <TableCell colSpan={7}>
+                <TableCell colSpan={columnCount}>
                   <div className="empty-state">
-                    <FileSearch size={18} /> 没有匹配的漏洞
+                    <FileSearch size={18} /> {t("triage.noMatches")}
                   </div>
                 </TableCell>
               </TableRow>
@@ -252,65 +277,87 @@ export const TriagePage: React.FC<TriagePageProps> = ({
                   <ContextMenuTrigger asChild>
                     <TableRow
                       data-state={selectedIds.includes(cve.cveId) ? "selected" : undefined}
-                      className="argus-table-row h-16 cursor-pointer"
+                      className={`argus-table-row severity-${cve.severity?.toLowerCase() ?? "low"} h-16 cursor-pointer`}
                       tabIndex={0}
-                      onClick={() => openCve(cve)}
+                      onClick={(event) => {
+                        event.currentTarget.focus();
+                        openCve(cve);
+                      }}
                       onKeyDown={(event) => {
                         if (event.key === "Enter" || event.key === " ") {
                           event.preventDefault();
                           openCve(cve);
                         }
                       }}
-                      aria-label={`查看 ${cve.cveId}，右键或长按打开操作菜单`}
+                      aria-label={t("triage.viewRow", { id: cve.cveId })}
                     >
-                      <TableCell onClick={(event) => event.stopPropagation()}>
-                        <Checkbox
-                          checked={selectedIds.includes(cve.cveId)}
-                          onCheckedChange={(checked) => toggleRow(cve.cveId, checked === true)}
-                          aria-label={`选择 ${cve.cveId}`}
-                        />
-                      </TableCell>
+                      {isAdmin && (
+                        <TableCell onClick={(event) => event.stopPropagation()}>
+                          <Checkbox
+                            checked={selectedIds.includes(cve.cveId)}
+                            onCheckedChange={(checked) => toggleRow(cve.cveId, checked === true)}
+                            aria-label={t("triage.select", { id: cve.cveId })}
+                          />
+                        </TableCell>
+                      )}
                       <TableCell>
                         <span className="severity-cell whitespace-nowrap">
                           <i className={`severity-dot ${cve.severity}`} />
-                          {severityLabels[cve.severity ?? ""] ?? cve.severity}
+                          {t(severityLabelKeys[cve.severity ?? ""] ?? "triage.noValue")}
                         </span>
                       </TableCell>
-                      <TableCell className="cell-muted font-medium">{cve.cveId}</TableCell>
-                      <TableCell className="max-w-[360px]">
+                      <TableCell className="cell-muted font-medium" translate="no">
+                        {cve.cveId}
+                      </TableCell>
+                      <TableCell className="triage-title-cell">
                         <div className="cell-title">
-                          <strong title={cve.title ?? "未命名漏洞"}>{cve.title ?? "未命名漏洞"}</strong>
-                          <span title={cve.candidates[0]?.componentName ?? "未匹配组件"}>
-                            {cve.candidates[0]?.componentName ?? "未匹配组件"}
+                          <strong title={cve.title ?? t("triage.noTitle")}>{cve.title ?? t("triage.noTitle")}</strong>
+                          <span title={cve.candidates[0]?.componentName ?? t("triage.noComponent")}>
+                            {cve.candidates[0]?.componentName ?? t("triage.noComponent")}
                           </span>
                         </div>
                       </TableCell>
-                      <TableCell className="cvss">{cve.cvssScoreV3 ?? cve.cvssScoreV4 ?? "—"}</TableCell>
-                      <TableCell className="cell-muted">{formatDate(cve.sourceUpdateDate)}</TableCell>
+                      <TableCell>
+                        <span
+                          className="cvss"
+                          style={
+                            {
+                              "--cvss-progress": cvssProgress(cve.cvssScoreV3 ?? cve.cvssScoreV4),
+                            } as React.CSSProperties
+                          }
+                        >
+                          <span className="cvss-value">
+                            {cve.cvssScoreV3 ?? cve.cvssScoreV4 ?? t("triage.noValue")}
+                          </span>
+                        </span>
+                      </TableCell>
+                      <TableCell className="cell-muted">
+                        {formatDate(cve.sourceUpdateDate, locale, t("triage.noValue"))}
+                      </TableCell>
                       <TableCell>
                         <Badge variant="outline" className={`status-badge ${statusClass(cve.triageStatus)}`}>
-                          {statusLabels[cve.triageStatus]}
+                          {t(statusLabelKeys[cve.triageStatus])}
                         </Badge>
                       </TableCell>
                     </TableRow>
                   </ContextMenuTrigger>
                   <ContextMenuContent>
-                    <ContextMenuLabel>{cve.cveId} 操作</ContextMenuLabel>
+                    <ContextMenuLabel>{t("triage.contextActions", { id: cve.cveId })}</ContextMenuLabel>
                     <ContextMenuSeparator />
-                    <ContextMenuItem onSelect={() => openCve(cve)}>查看详情</ContextMenuItem>
+                    <ContextMenuItem onSelect={() => openCve(cve)}>{t("action.showDetails")}</ContextMenuItem>
                     <ContextMenuItem
                       onSelect={() => {
                         if (!navigator.clipboard) {
-                          onToast("当前浏览器不支持复制，请手动选择 CVE ID");
+                          onToast(t("triage.copyUnsupported"));
                           return;
                         }
                         void navigator.clipboard
                           .writeText(cve.cveId)
-                          .then(() => onToast("已复制 CVE ID"))
-                          .catch(() => onToast("复制失败，请手动选择 CVE ID"));
+                          .then(() => onToast(t("action.copySuccess")))
+                          .catch(() => onToast(t("action.copyFailure")));
                       }}
                     >
-                      复制 CVE ID
+                      {t("triage.copyCve")}
                     </ContextMenuItem>
                   </ContextMenuContent>
                 </ContextMenu>
@@ -321,20 +368,24 @@ export const TriagePage: React.FC<TriagePageProps> = ({
 
       <div className="table-footer">
         <span>
-          {loading ? "正在加载漏洞…" : selectedIds.length ? `已选择 ${selectedIds.length} 条` : `共 ${total} 条漏洞`}
+          {loading
+            ? t("triage.loading")
+            : selectedIds.length
+              ? t("triage.selectedShort", { count: selectedIds.length })
+              : t("triage.totalShort", { count: total })}
         </span>
         <div className="pagination-tools">
-          <span>每页显示</span>
+          <span>{t("triage.pageSize")}</span>
           <Select
             value={String(pageSize)}
-            aria-label="每页显示数量"
+            aria-label={t("triage.pageSizeAria")}
             onValueChange={(value) => onPageSizeChange(Number(value))}
           >
-            <SelectTrigger className="page-size-select" aria-label="每页显示数量">
+            <SelectTrigger className="page-size-select" aria-label={t("triage.pageSizeAria")}>
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              {PAGE_SIZES.map((size) => (
+              {CVE_PAGE_SIZES.map((size) => (
                 <SelectItem key={size} value={String(size)}>
                   {size}
                 </SelectItem>

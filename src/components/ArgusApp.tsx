@@ -5,7 +5,6 @@ import {
   Boxes,
   ChartNoAxesCombined,
   CircleHelp,
-  Command,
   GitBranch,
   LayoutList,
   LogIn,
@@ -16,16 +15,22 @@ import {
   Search,
   Settings,
   UserRound,
+  X,
 } from "lucide-react";
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef } from "react";
 
+import { argusQueryKeys, useArgusQueries } from "@/client/hooks/useArgusQueries";
+import { useKeyboardShortcuts } from "@/client/hooks/useKeyboardShortcuts";
+import { useToast } from "@/client/hooks/useToast";
+import { request } from "@/client/http";
+import { useArgusUiState } from "@/client/state/argus";
 import { CommandPalette } from "@/components/CommandPalette";
 import { ComponentEditor } from "@/components/components/ComponentEditor";
 import { ComponentsPage } from "@/components/components/ComponentsPage";
 import { HelpPanel } from "@/components/layout/HelpPanel";
 import { NavButton } from "@/components/layout/Navigation";
 import { NotificationPanel } from "@/components/layout/NotificationPanel";
-import { SettingsPanel, type ThemeAccent } from "@/components/layout/SettingsPanel";
+import { SettingsPanel } from "@/components/layout/SettingsPanel";
 import { LoginDialog } from "@/components/LoginDialog";
 import { OverviewPage } from "@/components/overview/OverviewPage";
 import { PageTransition } from "@/components/PageTransition";
@@ -33,52 +38,26 @@ import { CveDrawer } from "@/components/triage/CveDrawer";
 import { CveEditor } from "@/components/triage/CveEditor";
 import { TriagePage } from "@/components/triage/TriagePage";
 import { NotificationBell } from "@/components/ui/notification-bell";
-import { argusQueryKeys, useArgusQueries } from "@/hooks/useArgusQueries";
-import { useKeyboardShortcuts } from "@/hooks/useKeyboardShortcuts";
-import { useToast } from "@/hooks/useToast";
-import type { ComponentRecord, CveRecord, TriageStatus } from "@/types/domain";
-import type { DrawerTab, GlobalResult, Page } from "@/types/ui";
-import { request } from "@/utils/http";
-import { statusLabels } from "@/utils/labels";
+import { STORAGE_KEYS } from "@/constants/app";
+import { useI18n } from "@/i18n";
+import type { CveRecord, TriageStatus } from "@/types/domain";
+import type { GlobalResult } from "@/types/ui";
 
 type ArgusAppProps = Record<string, never>;
 
 export const ArgusApp: React.FC<ArgusAppProps> = () => {
   const queryClient = useQueryClient();
-  const [page, setPage] = useState<Page>("triage");
-  const [cvePage, setCvePage] = useState(1);
-  const [cvePageSize, setCvePageSize] = useState(10);
-  const [selected, setSelected] = useState<CveRecord | null>(null);
-  const [drawerTab, setDrawerTab] = useState<DrawerTab>("Overview");
-  const [drawerOpen, setDrawerOpen] = useState(false);
-  const [triageQuery, setTriageQuery] = useState("");
-  const [componentQuery, setComponentQuery] = useState("");
-  const [severityFilter, setSeverityFilter] = useState("");
-  const [statusFilter, setStatusFilter] = useState("");
-  const [ecosystemFilter, setEcosystemFilter] = useState("");
-  const [globalQuery, setGlobalQuery] = useState("");
-  const [globalResults, setGlobalResults] = useState<GlobalResult[]>([]);
-  const [commandOpen, setCommandOpen] = useState(false);
-  const [selectedIds, setSelectedIds] = useState<string[]>([]);
-  const [loginOpen, setLoginOpen] = useState(false);
-  const [editorOpen, setEditorOpen] = useState(false);
-  const [componentEditorOpen, setComponentEditorOpen] = useState(false);
-  const [settingsOpen, setSettingsOpen] = useState(false);
-  const [helpOpen, setHelpOpen] = useState(false);
-  const [notificationsOpen, setNotificationsOpen] = useState(false);
-  const [notificationCount, setNotificationCount] = useState(0);
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
-  const [themeAccent, setThemeAccent] = useState<ThemeAccent>("terracotta");
-  const [editingComponent, setEditingComponent] = useState<ComponentRecord | null>(null);
-  const [authActionPending, setAuthActionPending] = useState(false);
+  const ui = useArgusUiState();
+  const drawerTriggerRef = useRef<HTMLElement | null>(null);
   const { notify } = useToast();
+  const { t } = useI18n();
   const queries = useArgusQueries({
-    query: triageQuery,
-    page: cvePage,
-    pageSize: cvePageSize,
-    severity: severityFilter,
-    status: statusFilter,
-    ecosystem: ecosystemFilter,
+    query: ui.debouncedTriageQuery,
+    page: ui.cvePage,
+    pageSize: ui.cvePageSize,
+    severity: ui.severityFilter,
+    status: ui.statusFilter,
+    ecosystem: ui.ecosystemFilter,
   });
   const cves = useMemo(() => queries.cves.data?.data ?? [], [queries.cves.data]);
   const components = queries.components.data?.data ?? [];
@@ -87,68 +66,106 @@ export const ArgusApp: React.FC<ArgusAppProps> = () => {
   const authPending = queries.user.isPending;
   const authError = queries.user.error?.message ?? null;
   const effectiveIsAdmin = queries.user.isSuccess && queries.user.data?.data.role === "admin";
-  const effectiveEmail = queries.user.data?.data.email ?? "guest@argus.local";
+  const effectiveEmail = queries.user.data?.data.email ?? t("auth.demo.guestEmail");
   const pageLoading =
-    page === "triage"
+    ui.page === "triage"
       ? queries.cves.isFetching
-      : page === "components"
+      : ui.page === "components"
         ? queries.components.isFetching
         : queries.overview.isFetching;
   const loading = pageLoading || authPending;
   const error =
-    page === "triage"
+    ui.page === "triage"
       ? (queries.cves.error?.message ?? null)
-      : page === "components"
+      : ui.page === "components"
         ? (queries.components.error?.message ?? null)
         : (queries.overview.error?.message ?? null);
   const loadData = async () => {
-    await queryClient.invalidateQueries({ queryKey: argusQueryKeys.all });
+    await Promise.all([
+      queryClient.invalidateQueries({ queryKey: ["argus", "cves"] }),
+      queryClient.invalidateQueries({ queryKey: argusQueryKeys.components() }),
+      queryClient.invalidateQueries({ queryKey: argusQueryKeys.overview() }),
+    ]);
   };
 
   useEffect(() => {
-    if (!selected) return;
-    const refreshed = cves.find((item) => item.cveId === selected.cveId);
-    if (refreshed && refreshed !== selected) setSelected(refreshed);
-  }, [cves, selected]);
+    const timer = window.setTimeout(() => ui.setDebouncedTriageQuery(ui.triageQuery), 220);
+    return () => window.clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ui.setDebouncedTriageQuery, ui.triageQuery]);
 
   useEffect(() => {
-    const savedTheme = window.localStorage.getItem("argus_theme");
-    const savedSidebar = window.localStorage.getItem("argus_sidebar_collapsed");
-    if (savedTheme === "terracotta" || savedTheme === "olive" || savedTheme === "graphite") setThemeAccent(savedTheme);
-    if (savedSidebar === "true") setSidebarCollapsed(true);
-  }, []);
+    const current = ui.selected;
+    if (!current) return;
+    const refreshed = cves.find((item) => item.cveId === current.cveId);
+    if (refreshed && refreshed !== current) ui.setSelected(refreshed);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [cves, ui.selected, ui.setSelected]);
 
   useEffect(() => {
-    document.documentElement.dataset.theme = themeAccent;
-    window.localStorage.setItem("argus_theme", themeAccent);
-  }, [themeAccent]);
+    if (!effectiveIsAdmin && ui.selectedIds.length) ui.setSelectedIds([]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [effectiveIsAdmin, ui.selectedIds.length, ui.setSelectedIds]);
 
   useEffect(() => {
-    window.localStorage.setItem("argus_sidebar_collapsed", String(sidebarCollapsed));
-  }, [sidebarCollapsed]);
+    const savedTheme = window.localStorage.getItem(STORAGE_KEYS.theme);
+    const savedSidebar = window.localStorage.getItem(STORAGE_KEYS.sidebarCollapsed);
+    if (savedTheme === "terracotta" || savedTheme === "olive" || savedTheme === "graphite") {
+      ui.setThemeAccent(savedTheme);
+    }
+    if (savedSidebar === "true") ui.setSidebarCollapsed(true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ui.setSidebarCollapsed, ui.setThemeAccent]);
+
+  useEffect(() => {
+    if (!/Mac|iPhone|iPad/.test(window.navigator.platform)) ui.setShortcutModifier("Ctrl");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ui.setShortcutModifier]);
+
+  useEffect(() => {
+    document.documentElement.dataset.theme = ui.themeAccent;
+    window.localStorage.setItem(STORAGE_KEYS.theme, ui.themeAccent);
+  }, [ui.themeAccent]);
+
+  useEffect(() => {
+    window.localStorage.setItem(STORAGE_KEYS.sidebarCollapsed, String(ui.sidebarCollapsed));
+  }, [ui.sidebarCollapsed]);
+
+  const closeDrawer = () => {
+    ui.setDrawerOpen(false);
+    const trigger = drawerTriggerRef.current;
+    if (!trigger) return;
+    window.setTimeout(() => {
+      if (trigger.isConnected) trigger.focus();
+      drawerTriggerRef.current = null;
+    }, 0);
+  };
 
   useKeyboardShortcuts(
-    () => setCommandOpen(true),
+    () => ui.setCommandOpen(true),
     () => {
-      setCommandOpen(false);
-      setDrawerOpen(false);
-      setEditorOpen(false);
-      setLoginOpen(false);
-      setSettingsOpen(false);
-      setHelpOpen(false);
-      setNotificationsOpen(false);
+      ui.setCommandOpen(false);
+      closeDrawer();
+      ui.setEditorOpen(false);
+      ui.setLoginOpen(false);
+      ui.setSettingsOpen(false);
+      ui.setHelpOpen(false);
+      ui.setNotificationsOpen(false);
     },
   );
 
   const openCve = (cve: CveRecord) => {
-    setSelected(cve);
-    setDrawerTab("Overview");
-    setDrawerOpen(true);
-    setCommandOpen(false);
+    const activeElement = document.activeElement;
+    drawerTriggerRef.current =
+      activeElement instanceof HTMLElement && activeElement !== document.body ? activeElement : null;
+    ui.setSelected(cve);
+    ui.setDrawerTab("Overview");
+    ui.setDrawerOpen(true);
+    ui.setCommandOpen(false);
   };
 
   const updateLocalCve = (next: CveRecord) => {
-    setSelected(next);
+    ui.setSelected(next);
     void loadData();
   };
 
@@ -159,77 +176,82 @@ export const ArgusApp: React.FC<ArgusAppProps> = () => {
         body: JSON.stringify({ status }),
       });
       updateLocalCve(response.data);
-      notify(`状态已更新为「${statusLabels[status]}」`);
+      notify(
+        t("triage.statusUpdated", {
+          status: t(
+            `status.${status === "PENDING" ? "pending" : status === "CONFIRMED" ? "confirmed" : status === "DEFERRED" ? "deferred" : "falsePositive"}`,
+          ),
+        }),
+      );
     } catch (requestError) {
-      notify(requestError instanceof Error ? requestError.message : "状态更新失败");
+      notify(requestError instanceof Error ? requestError.message : t("triage.error"));
     }
   };
 
   const batchStatus = async (status: TriageStatus) => {
-    if (!selectedIds.length) return;
+    if (!ui.selectedIds.length) return;
     try {
       await request("/api/cves/batch-status", {
         method: "POST",
-        body: JSON.stringify({ cveIds: selectedIds, status }),
+        body: JSON.stringify({ cveIds: ui.selectedIds, status }),
       });
-      setSelectedIds([]);
-      notify(`已批量更新 ${selectedIds.length} 条漏洞`);
+      ui.setSelectedIds([]);
+      notify(t("triage.batchUpdated", { count: ui.selectedIds.length }));
       await loadData();
     } catch (requestError) {
-      notify(requestError instanceof Error ? requestError.message : "批量更新失败");
+      notify(requestError instanceof Error ? requestError.message : t("triage.error"));
     }
   };
 
   const deleteSelected = async () => {
-    if (!selected) return;
+    if (!ui.selected) return;
     try {
-      await request(`/api/cves/${encodeURIComponent(selected.cveId)}`, { method: "DELETE" });
-      setDrawerOpen(false);
-      setSelected(null);
-      notify("漏洞已删除，删除事件已保留");
+      await request(`/api/cves/${encodeURIComponent(ui.selected.cveId)}`, { method: "DELETE" });
+      closeDrawer();
+      ui.setSelected(null);
+      notify(t("triage.deleted"));
       await loadData();
     } catch (requestError) {
-      notify(requestError instanceof Error ? requestError.message : "删除失败");
+      notify(requestError instanceof Error ? requestError.message : t("triage.deleteFailed"));
     }
   };
 
-  const login = async (provider: string, email = "admin@argus.local", password = "argus-demo") => {
-    setAuthActionPending(true);
+  const login = async (provider: string, email?: string, password?: string) => {
+    ui.setAuthActionPending(true);
     try {
       if (provider !== "email") {
         const response = await request<{ data: { url: string } }>(`/api/auth/oauth/${provider}`);
         window.location.assign(response.data.url);
         return;
       }
-      const response = await request<{ data: { email: string; role: string; accessToken?: string } }>(
-        "/api/auth/login",
-        { method: "POST", body: JSON.stringify({ email, password }) },
-      );
-      if (response.data.accessToken) window.localStorage.setItem("argus_access_token", response.data.accessToken);
+      const response = await request<{ data: { email: string; role: string } }>("/api/auth/login", {
+        method: "POST",
+        body: JSON.stringify({ email, password }),
+      });
       queryClient.setQueryData(argusQueryKeys.user(), { data: response.data });
-      setLoginOpen(false);
-      notify("已进入 Admin 演示模式");
+      ui.setLoginOpen(false);
+      notify(t("auth.login.demoSuccess"));
       await loadData();
     } catch (requestError) {
-      notify(requestError instanceof Error ? requestError.message : "登录失败");
+      notify(requestError instanceof Error ? requestError.message : t("auth.login.error"));
     } finally {
-      setAuthActionPending(false);
+      ui.setAuthActionPending(false);
     }
   };
 
   const logout = async () => {
-    setAuthActionPending(true);
+    ui.setAuthActionPending(true);
     try {
       await request("/api/auth/logout", { method: "POST" });
-      window.localStorage.removeItem("argus_access_token");
+      ui.setSelectedIds([]);
       queryClient.setQueryData(argusQueryKeys.user(), {
-        data: { email: "guest@argus.local", role: "guest" },
+        data: { email: t("auth.demo.guestEmail"), role: "guest" },
       });
-      notify("已退出登录");
+      notify(t("auth.logout.success"));
     } catch (requestError) {
-      notify(requestError instanceof Error ? requestError.message : "退出登录失败，请重试");
+      notify(requestError instanceof Error ? requestError.message : t("auth.logout.error"));
     } finally {
-      setAuthActionPending(false);
+      ui.setAuthActionPending(false);
     }
   };
 
@@ -237,30 +259,34 @@ export const ArgusApp: React.FC<ArgusAppProps> = () => {
     void queryClient.invalidateQueries({ queryKey: argusQueryKeys.user() });
   };
 
-  const pageTitle = page === "triage" ? "Triage" : page === "components" ? "Components" : "Overview";
-  const pageSubtitle =
-    page === "triage"
-      ? "把依赖证据转化为行动。"
-      : page === "components"
-        ? "维护软件供应链中的组件证据。"
-        : "让风险状态保持可见、可解释、可复现。";
+  const pageTitle = t("page.triage.title");
+  const pageSubtitle = t("page.triage.subtitle");
 
   useEffect(() => {
-    if (!globalQuery.trim()) {
-      setGlobalResults([]);
+    if (!ui.globalQuery.trim()) {
+      ui.setGlobalResults([]);
       return;
     }
+    const controller = new AbortController();
     const timer = window.setTimeout(() => {
-      void request<{ data: GlobalResult[] }>(`/api/search?query=${encodeURIComponent(globalQuery)}`)
-        .then((response) => setGlobalResults(response.data))
-        .catch(() => setGlobalResults([]));
+      void request<{ data: GlobalResult[] }>(`/api/search?query=${encodeURIComponent(ui.globalQuery)}`, {
+        signal: controller.signal,
+      })
+        .then((response) => ui.setGlobalResults(response.data))
+        .catch(() => {
+          if (!controller.signal.aborted) ui.setGlobalResults([]);
+        });
     }, 180);
-    return () => window.clearTimeout(timer);
-  }, [globalQuery]);
+    return () => {
+      window.clearTimeout(timer);
+      controller.abort();
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ui.globalQuery, ui.setGlobalResults]);
 
   const paletteResults = useMemo(
     () =>
-      globalResults.map((result) => ({
+      ui.globalResults.map((result) => ({
         ...result,
         onClick: async () => {
           if (result.type === "CVE") {
@@ -268,101 +294,128 @@ export const ArgusApp: React.FC<ArgusAppProps> = () => {
               const response = await request<{ data: CveRecord }>(`/api/cves/${encodeURIComponent(result.target)}`);
               openCve(response.data);
             } catch {
-              setPage("triage");
-              setTriageQuery(result.target);
+              ui.setPage("triage");
+              ui.setTriageQuery(result.target);
             }
           } else {
-            setPage("components");
-            setComponentQuery(result.target);
-            setCommandOpen(false);
+            ui.setPage("components");
+            ui.setComponentQuery(result.target);
+            ui.setCommandOpen(false);
           }
         },
       })),
-    [globalResults],
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [ui.globalResults, openCve, ui.setCommandOpen, ui.setComponentQuery, ui.setPage, ui.setTriageQuery],
   );
 
   return (
-    <div className={`app-shell ${sidebarCollapsed ? "sidebar-is-collapsed" : ""}`}>
-      <aside className={`sidebar ${sidebarCollapsed ? "collapsed" : ""}`}>
+    <div className={`app-shell ${ui.sidebarCollapsed ? "sidebar-is-collapsed" : ""}`}>
+      <a className="skip-link" href="#main-content">
+        {t("nav.skip")}
+      </a>
+      <aside className={`sidebar ${ui.sidebarCollapsed ? "collapsed" : ""}`}>
         <div>
           <div className="wordmark">
             <div>
-              <strong>ARGUS</strong>
-              <span>软件供应链</span>
+              <strong translate="no">{t("brand.name")}</strong>
+              <span>{t("brand.supplyChain")}</span>
             </div>
             <button
               className="icon-button mobile-menu"
-              aria-label={sidebarCollapsed ? "展开导航" : "折叠导航"}
-              onClick={() => setSidebarCollapsed((value) => !value)}
+              aria-label={t(ui.sidebarCollapsed ? "nav.expand" : "nav.collapse")}
+              aria-controls="app-sidebar-nav app-sidebar-footer"
+              aria-expanded={!ui.sidebarCollapsed}
+              onClick={() => ui.setSidebarCollapsed((value) => !value)}
             >
-              {sidebarCollapsed ? <Menu size={18} /> : <PanelLeft size={18} />}
+              <PanelLeft size={18} className="sidebar-toggle-desktop" aria-hidden="true" />
+              {ui.sidebarCollapsed ? (
+                <Menu size={18} className="sidebar-toggle-mobile" aria-hidden="true" />
+              ) : (
+                <X size={18} className="sidebar-toggle-mobile" aria-hidden="true" />
+              )}
             </button>
           </div>
-          <nav className="nav" aria-label="主导航">
+          <nav id="app-sidebar-nav" className="nav" aria-label={t("nav.main")}>
             <NavButton
-              active={page === "triage"}
+              active={ui.page === "triage"}
               icon={<LayoutList size={17} />}
-              label="Triage"
-              onClick={() => setPage("triage")}
-              collapsed={sidebarCollapsed}
+              label={t("nav.triage")}
+              onClick={() => ui.setPage("triage")}
+              collapsed={ui.sidebarCollapsed}
             />
             <NavButton
-              active={page === "components"}
+              active={ui.page === "components"}
               icon={<Boxes size={17} />}
-              label="Components"
-              onClick={() => setPage("components")}
-              collapsed={sidebarCollapsed}
+              label={t("nav.components")}
+              onClick={() => ui.setPage("components")}
+              collapsed={ui.sidebarCollapsed}
             />
             <NavButton
-              active={page === "overview"}
+              active={ui.page === "overview"}
               icon={<ChartNoAxesCombined size={17} />}
-              label="Overview"
-              onClick={() => setPage("overview")}
-              collapsed={sidebarCollapsed}
+              label={t("nav.overview")}
+              onClick={() => ui.setPage("overview")}
+              collapsed={ui.sidebarCollapsed}
             />
           </nav>
         </div>
-        <div className="sidebar-footer">
+        <div id="app-sidebar-footer" className="sidebar-footer">
           <div className="footer-links">
             <NavButton
               icon={<Settings size={16} />}
-              label="设置"
-              onClick={() => setSettingsOpen(true)}
-              collapsed={sidebarCollapsed}
+              label={t("nav.settings")}
+              onClick={() => ui.setSettingsOpen(true)}
+              collapsed={ui.sidebarCollapsed}
             />
             <NavButton
               icon={<CircleHelp size={16} />}
-              label="帮助"
-              onClick={() => setHelpOpen(true)}
-              collapsed={sidebarCollapsed}
+              label={t("nav.help")}
+              onClick={() => ui.setHelpOpen(true)}
+              collapsed={ui.sidebarCollapsed}
             />
           </div>
           <NavButton
             icon={<GitBranch size={16} />}
-            label="GitHub 仓库"
-            onClick={() => window.open("https://github.com/BlackishGreen33/Argus", "_blank", "noopener,noreferrer")}
-            collapsed={sidebarCollapsed}
+            label={t("nav.github")}
+            href="https://github.com/BlackishGreen33/Argus"
+            collapsed={ui.sidebarCollapsed}
           />
-          {!sidebarCollapsed && <div className="footer-note">更安全的软件，更稳定的未来。</div>}
         </div>
       </aside>
 
-      <main className="main">
+      <main id="main-content" className="main" tabIndex={-1}>
         <header className="topbar">
           <div className="global-search" role="search">
             <Search size={17} aria-hidden="true" />
             <input
-              aria-label="全局搜索"
-              value={globalQuery}
+              name="global-search"
+              autoComplete="off"
+              aria-label={t("search.global.label")}
+              aria-keyshortcuts="Meta+K Control+K"
+              value={ui.globalQuery}
               onChange={(event) => {
-                setGlobalQuery(event.target.value);
-                setCommandOpen(true);
+                ui.setGlobalQuery(event.target.value);
+                ui.setCommandOpen(true);
               }}
-              onFocus={() => globalQuery && setCommandOpen(true)}
-              placeholder="搜索 CVE、组件或 PURL…"
+              onFocus={() => ui.globalQuery && ui.setCommandOpen(true)}
+              placeholder={t("search.global.placeholder")}
             />
-            <span className="shortcut">
-              <Command size={11} /> K
+            {ui.globalQuery && (
+              <button
+                type="button"
+                className="input-clear"
+                aria-label={t("search.clear.global")}
+                onMouseDown={(event) => event.preventDefault()}
+                onClick={() => {
+                  ui.setGlobalQuery("");
+                  ui.setCommandOpen(false);
+                }}
+              >
+                <X size={15} aria-hidden="true" />
+              </button>
+            )}
+            <span className="shortcut" aria-hidden="true">
+              {ui.shortcutModifier} K
             </span>
           </div>
           <div className="top-actions">
@@ -370,47 +423,60 @@ export const ArgusApp: React.FC<ArgusAppProps> = () => {
               className="notification-button"
               size={36}
               color="orange"
-              aria-label={`通知${notificationCount ? `，${notificationCount} 条` : ""}`}
-              onClick={() => setNotificationsOpen(true)}
-              count={notificationCount}
+              aria-label={
+                ui.notificationCount
+                  ? t("notifications.labelWithCount", { count: ui.notificationCount })
+                  : t("notifications.label")
+              }
+              onClick={() => ui.setNotificationsOpen(true)}
+              count={ui.notificationCount}
             />
             {authPending ? (
-              <div className="profile-chip profile-chip-pending" role="status" aria-label="正在验证登录状态">
+              <div className="profile-chip profile-chip-pending" role="status" aria-label={t("auth.pending.label")}>
                 <span className="avatar">
                   <UserRound size={15} />
                 </span>
                 <span className="profile-copy">
-                  <strong>验证中</strong>
-                  <span>正在确认登录状态</span>
+                  <strong>{t("auth.pending.title")}</strong>
+                  <span>{t("auth.pending.description")}</span>
                 </span>
               </div>
             ) : authError ? (
-              <button className="profile-chip profile-chip-error" onClick={retryAuth} aria-label="重试登录状态验证">
+              <button
+                className="profile-chip profile-chip-error"
+                onClick={retryAuth}
+                aria-label={t("auth.error.label")}
+              >
                 <span className="avatar">
                   <RefreshCw size={15} />
                 </span>
                 <span className="profile-copy">
-                  <strong>验证失败</strong>
-                  <span>点击重试</span>
+                  <strong>{t("auth.error.title")}</strong>
+                  <span>{t("auth.error.description")}</span>
                 </span>
               </button>
             ) : effectiveIsAdmin ? (
-              <button className="profile-chip" onClick={logout} disabled={authActionPending} aria-label="退出 Admin">
-                <span className="avatar">AD</span>
+              <button
+                className="profile-chip"
+                onClick={logout}
+                disabled={ui.authActionPending}
+                aria-label={t("auth.admin.logout")}
+              >
+                <span className="avatar">{t("brand.adminInitials")}</span>
                 <span className="profile-copy">
-                  <strong>Admin</strong>
+                  <strong>{t("auth.admin.title")}</strong>
                   <span>{effectiveEmail}</span>
                 </span>
                 <LogOut size={15} />
               </button>
             ) : (
-              <button className="profile-chip" onClick={() => setLoginOpen(true)} aria-label="登录 Admin">
+              <button className="profile-chip" onClick={() => ui.setLoginOpen(true)} aria-label={t("auth.guest.login")}>
                 <span className="avatar">
                   <UserRound size={15} />
                 </span>
                 <span className="profile-copy">
-                  <strong>Guest</strong>
-                  <span>仅浏览</span>
+                  <strong>{t("auth.guest.title")}</strong>
+                  <span>{t("auth.guest.description")}</span>
                 </span>
                 <LogIn size={15} />
               </button>
@@ -419,103 +485,99 @@ export const ArgusApp: React.FC<ArgusAppProps> = () => {
         </header>
 
         <CommandPalette
-          open={commandOpen}
-          query={globalQuery}
+          open={ui.commandOpen}
+          query={ui.globalQuery}
           results={paletteResults}
-          onQueryChange={setGlobalQuery}
-          onClose={() => setCommandOpen(false)}
+          onQueryChange={ui.setGlobalQuery}
+          onClose={() => ui.setCommandOpen(false)}
         />
         <div className="content">
-          <PageTransition page={page}>
-            {page === "triage" && (
+          <PageTransition page={ui.page}>
+            {ui.page === "triage" && (
               <TriagePage
                 cves={cves}
-                selectedIds={selectedIds}
-                setSelectedIds={setSelectedIds}
+                selectedIds={ui.selectedIds}
+                setSelectedIds={ui.setSelectedIds}
                 loading={loading}
                 authPending={authPending}
                 error={error}
                 pageTitle={pageTitle}
                 pageSubtitle={pageSubtitle}
-                localQuery={triageQuery}
+                localQuery={ui.triageQuery}
                 setLocalQuery={(value) => {
-                  setTriageQuery(value);
-                  setCvePage(1);
-                  void loadData();
+                  ui.setTriageQuery(value);
+                  ui.setCvePage(1);
                 }}
-                severityFilter={severityFilter}
-                statusFilter={statusFilter}
-                ecosystemFilter={ecosystemFilter}
+                severityFilter={ui.severityFilter}
+                statusFilter={ui.statusFilter}
+                ecosystemFilter={ui.ecosystemFilter}
                 onSeverityChange={(value) => {
-                  setSeverityFilter(value);
-                  setCvePage(1);
-                  void loadData();
+                  ui.setSeverityFilter(value);
+                  ui.setCvePage(1);
                 }}
                 onStatusFilterChange={(value) => {
-                  setStatusFilter(value);
-                  setCvePage(1);
-                  void loadData();
+                  ui.setStatusFilter(value);
+                  ui.setCvePage(1);
                 }}
                 onEcosystemChange={(value) => {
-                  setEcosystemFilter(value);
-                  setCvePage(1);
-                  void loadData();
+                  ui.setEcosystemFilter(value);
+                  ui.setCvePage(1);
                 }}
                 onClearFilters={() => {
-                  setSeverityFilter("");
-                  setStatusFilter("");
-                  setEcosystemFilter("");
-                  setCvePage(1);
-                  void loadData();
+                  if (!ui.triageQuery.trim() && !ui.severityFilter && !ui.statusFilter && !ui.ecosystemFilter) return;
+                  ui.setTriageQuery("");
+                  ui.setDebouncedTriageQuery("");
+                  ui.setSeverityFilter("");
+                  ui.setStatusFilter("");
+                  ui.setEcosystemFilter("");
+                  ui.setCvePage(1);
                 }}
                 onToast={notify}
                 openCve={openCve}
                 onBatchStatus={batchStatus}
                 isAdmin={effectiveIsAdmin}
-                onLogin={() => setLoginOpen(true)}
-                page={cvePage}
-                pageSize={cvePageSize}
+                onLogin={() => ui.setLoginOpen(true)}
+                page={ui.cvePage}
+                pageSize={ui.cvePageSize}
                 total={cveTotal}
                 onPageChange={(nextPage) => {
-                  setCvePage(nextPage);
-                  void loadData();
+                  ui.setCvePage(nextPage);
                 }}
                 onPageSizeChange={(nextPageSize) => {
-                  setCvePageSize(nextPageSize);
-                  setCvePage(1);
-                  void loadData();
+                  ui.setCvePageSize(nextPageSize);
+                  ui.setCvePage(1);
                 }}
               />
             )}
-            {page === "components" && (
+            {ui.page === "components" && (
               <ComponentsPage
                 components={components}
-                query={componentQuery}
-                setQuery={setComponentQuery}
+                query={ui.componentQuery}
+                setQuery={ui.setComponentQuery}
                 loading={loading}
                 authPending={authPending}
                 isAdmin={effectiveIsAdmin}
-                onLogin={() => setLoginOpen(true)}
+                onLogin={() => ui.setLoginOpen(true)}
                 onRefresh={() => {
                   void loadData();
                 }}
                 onEdit={(component) => {
-                  setEditingComponent(component);
-                  setComponentEditorOpen(true);
+                  ui.setEditingComponent(component);
+                  ui.setComponentEditorOpen(true);
                 }}
                 onCreate={() => {
-                  setEditingComponent(null);
-                  setComponentEditorOpen(true);
+                  ui.setEditingComponent(null);
+                  ui.setComponentEditorOpen(true);
                 }}
               />
             )}
-            {page === "overview" && (
+            {ui.page === "overview" && (
               <OverviewPage
                 data={overviewData}
                 loading={loading}
                 authPending={authPending}
                 isAdmin={effectiveIsAdmin}
-                onLogin={() => setLoginOpen(true)}
+                onLogin={() => ui.setLoginOpen(true)}
                 onToast={notify}
                 onRefresh={loadData}
               />
@@ -524,66 +586,68 @@ export const ArgusApp: React.FC<ArgusAppProps> = () => {
         </div>
       </main>
 
-      {drawerOpen && selected && (
+      {ui.drawerOpen && ui.selected && (
         <CveDrawer
-          cve={selected}
-          tab={drawerTab}
-          setTab={setDrawerTab}
+          cve={ui.selected}
+          tab={ui.drawerTab}
+          setTab={ui.setDrawerTab}
           isAdmin={effectiveIsAdmin}
-          onLogin={() => setLoginOpen(true)}
-          onClose={() => setDrawerOpen(false)}
+          onLogin={() => ui.setLoginOpen(true)}
+          onClose={closeDrawer}
           onStatus={changeStatus}
-          onEdit={() => setEditorOpen(true)}
+          onEdit={() => ui.setEditorOpen(true)}
           onDelete={() => void deleteSelected()}
           onCandidate={async (id, status) => {
             await request(`/api/cpe-candidates/${id}`, { method: "PATCH", body: JSON.stringify({ status }) });
-            notify(status === "CONFIRMED" ? "候选关联已确认" : "候选关联已排除");
+            notify(t(status === "CONFIRMED" ? "triage.candidateConfirmed" : "triage.candidateRejected"));
             await loadData();
           }}
         />
       )}
-      {editorOpen && selected && (
+      {ui.editorOpen && ui.selected && (
         <CveEditor
-          cve={selected}
-          onClose={() => setEditorOpen(false)}
+          cve={ui.selected}
+          onClose={() => ui.setEditorOpen(false)}
           onSaved={(next) => {
             updateLocalCve(next);
-            setEditorOpen(false);
-            notify("漏洞内容已保存");
+            ui.setEditorOpen(false);
+            notify(t("triage.saved"));
           }}
         />
       )}
-      {componentEditorOpen && (
+      {ui.componentEditorOpen && (
         <ComponentEditor
-          component={editingComponent}
-          onClose={() => setComponentEditorOpen(false)}
+          component={ui.editingComponent}
+          onClose={() => ui.setComponentEditorOpen(false)}
           onSaved={async () => {
-            setComponentEditorOpen(false);
+            ui.setComponentEditorOpen(false);
             await loadData();
-            notify(editingComponent ? "组件已更新" : "组件已创建");
+            notify(t(ui.editingComponent ? "components.updated" : "components.created"));
           }}
           onDeleted={async () => {
-            setComponentEditorOpen(false);
+            ui.setComponentEditorOpen(false);
             await loadData();
-            notify("组件已删除");
+            notify(t("components.deleted"));
           }}
           onError={notify}
         />
       )}
-      {loginOpen && <LoginDialog loading={authActionPending} onClose={() => setLoginOpen(false)} onLogin={login} />}
+      {ui.loginOpen && (
+        <LoginDialog loading={ui.authActionPending} onClose={() => ui.setLoginOpen(false)} onLogin={login} />
+      )}
       <SettingsPanel
-        open={settingsOpen}
-        onOpenChange={setSettingsOpen}
-        theme={themeAccent}
-        onThemeChange={setThemeAccent}
-        collapsed={sidebarCollapsed}
-        onCollapsedChange={setSidebarCollapsed}
+        open={ui.settingsOpen}
+        onOpenChange={ui.setSettingsOpen}
+        theme={ui.themeAccent}
+        onThemeChange={ui.setThemeAccent}
+        collapsed={ui.sidebarCollapsed}
+        onCollapsedChange={ui.setSidebarCollapsed}
       />
-      <HelpPanel open={helpOpen} onOpenChange={setHelpOpen} />
+      <HelpPanel open={ui.helpOpen} onOpenChange={ui.setHelpOpen} />
       <NotificationPanel
-        open={notificationsOpen}
-        onOpenChange={setNotificationsOpen}
-        onCountChange={setNotificationCount}
+        open={ui.notificationsOpen}
+        onOpenChange={ui.setNotificationsOpen}
+        onCountChange={ui.setNotificationCount}
       />
     </div>
   );

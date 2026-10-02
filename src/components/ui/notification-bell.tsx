@@ -15,17 +15,18 @@ import {
 } from "motion/react";
 import { type ComponentProps, type ReactNode, useEffect, useRef } from "react";
 
+import { useI18n } from "@/i18n";
 import { cn } from "@/utils/cn";
 
-const SURFACE = "bg-[#F4F4F9] dark:bg-[#262626]";
-const GLYPH = "text-[#868593] dark:text-[#9B9AA7]";
+const SURFACE = "bg-[var(--app-surface)]";
+const GLYPH = "text-[var(--app-ink-soft)]";
 
 const COLORS = {
-  red: "bg-[#FF3B30] dark:bg-[#FF453A]",
-  orange: "bg-[#FF9500] dark:bg-[#FF9F0A]",
-  green: "bg-[#34C759] dark:bg-[#30D158]",
-  blue: "bg-[#007AFF] dark:bg-[#0A84FF]",
-  violet: "bg-[#AF52DE] dark:bg-[#BF5AF2]",
+  red: "bg-[var(--critical)]",
+  orange: "bg-[var(--accent)]",
+  green: "bg-[var(--ok)]",
+  blue: "bg-[var(--accent)]",
+  violet: "bg-[var(--accent-deep)]",
 } as const;
 
 // all sizes are a fraction of the size prop
@@ -234,7 +235,7 @@ function CountBadge({
         >
           {!dot && (
             <span
-              className="flex leading-none font-semibold tracking-tight text-white"
+              className="flex leading-none font-semibold tracking-tight text-[var(--ui-on-accent)]"
               // digits need the same width or the columns shift
               style={{ fontVariantNumeric: "tabular-nums" }}
             >
@@ -277,6 +278,7 @@ export function NotificationBell({
   children,
   ...props
 }: NotificationBellProps) {
+  const { t } = useI18n();
   const reduced = useReducedMotion() ?? false;
   const total = Number.isFinite(count) ? Math.max(0, Math.floor(count)) : 0;
   // use the total so a weird count cannot ring the bell
@@ -289,7 +291,7 @@ export function NotificationBell({
   // this is also the button label, so the count gets read out when it changes
   const label = (
     <span role="status" className="sr-only">
-      {total > 0 ? `Notifications, ${total} unread` : "Notifications"}
+      {total > 0 ? t("notifications.labelWithCount", { count: total }) : t("notifications.label")}
     </span>
   );
 

@@ -3,13 +3,14 @@
 import { Lock, Trash2, X } from "lucide-react";
 import React, { useState } from "react";
 
+import { request } from "@/client/http";
 import { ConfirmActionDialog } from "@/components/ConfirmActionDialog";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { useI18n } from "@/i18n";
 import type { ComponentRecord } from "@/types/domain";
-import { request } from "@/utils/http";
 
 interface ComponentEditorProps {
   component: ComponentRecord | null;
@@ -26,8 +27,9 @@ export const ComponentEditor: React.FC<ComponentEditorProps> = ({
   onDeleted,
   onError,
 }) => {
+  const { t } = useI18n();
   const [form, setForm] = useState({
-    purl: component?.purl ?? "pkg:maven/example/library@1.0.0",
+    purl: component?.purl ?? t("components.defaultPurl"),
     name: component?.name ?? "",
     version: component?.version ?? "",
     vendor: component?.vendor ?? "",
@@ -39,7 +41,7 @@ export const ComponentEditor: React.FC<ComponentEditorProps> = ({
   });
   const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
   const save = async () => {
-    if (!form.purl.trim() || !form.name.trim() || !form.version.trim()) return onError("PURL、名称和版本不能为空");
+    if (!form.purl.trim() || !form.name.trim() || !form.version.trim()) return onError(t("components.required"));
     try {
       await request(`/api/components${component ? `/${encodeURIComponent(component.purl)}` : ""}`, {
         method: component ? "PATCH" : "POST",
@@ -47,7 +49,7 @@ export const ComponentEditor: React.FC<ComponentEditorProps> = ({
       });
       await onSaved();
     } catch (error) {
-      onError(error instanceof Error ? error.message : "组件保存失败");
+      onError(error instanceof Error ? error.message : t("components.saveFailed"));
     }
   };
   const remove = async () => {
@@ -57,119 +59,149 @@ export const ComponentEditor: React.FC<ComponentEditorProps> = ({
       await request(`/api/components/${encodeURIComponent(component.purl)}`, { method: "DELETE" });
       await onDeleted();
     } catch (error) {
-      onError(error instanceof Error ? error.message : "组件删除失败");
+      onError(error instanceof Error ? error.message : t("components.deleteFailed"));
     }
   };
   return (
     <>
       <Dialog open onOpenChange={(open) => !open && onClose()}>
         <DialogContent className="editor max-w-[920px] p-0" showCloseButton={false}>
-          <DialogTitle className="sr-only">{component ? "编辑组件" : "新增组件"}</DialogTitle>
-          <DialogDescription className="sr-only">维护组件的 PURL、名称、版本和来源元数据。</DialogDescription>
+          <DialogTitle className="sr-only">
+            {t(component ? "components.editorTitleEdit" : "components.editorTitleNew")}
+          </DialogTitle>
+          <DialogDescription className="sr-only">{t("components.editorDescription")}</DialogDescription>
           <div className="editor-header">
             <div>
-              <div className="eyebrow">Components</div>
-              <h2>{component ? "编辑组件" : "新增组件"}</h2>
-              <p>保留来源证据，同时维护本地元数据。</p>
+              <div className="eyebrow">{t("page.components.title")}</div>
+              <h2>{t(component ? "components.editorTitleEdit" : "components.editorTitleNew")}</h2>
+              <p>{t("components.editorSubtitle")}</p>
             </div>
-            <Button variant="ghost" size="icon-sm" className="drawer-close" onClick={onClose} aria-label="关闭组件表单">
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              className="drawer-close"
+              onClick={onClose}
+              aria-label={t("action.closeComponentEditor")}
+            >
               <X size={20} />
             </Button>
           </div>
           <div className="editor-form">
             <div className="field full">
-              <label htmlFor="component-purl">PURL {component && <Lock size={12} />}</label>
+              <label htmlFor="component-purl">
+                {t("components.purlLabel")} {component && <Lock size={12} />}
+              </label>
               <Input
                 id="component-purl"
+                name="purl"
+                autoComplete="off"
+                spellCheck={false}
                 value={form.purl}
                 disabled={Boolean(component)}
                 onChange={(event) => setForm({ ...form, purl: event.target.value })}
               />
             </div>
             <div className="field">
-              <label htmlFor="component-name">名称</label>
+              <label htmlFor="component-name">{t("components.name")}</label>
               <Input
                 id="component-name"
+                name="name"
+                autoComplete="off"
                 required
                 value={form.name}
                 onChange={(event) => setForm({ ...form, name: event.target.value })}
               />
             </div>
             <div className="field">
-              <label htmlFor="component-version">版本</label>
+              <label htmlFor="component-version">{t("components.version")}</label>
               <Input
                 id="component-version"
+                name="version"
+                autoComplete="off"
                 required
                 value={form.version}
                 onChange={(event) => setForm({ ...form, version: event.target.value })}
               />
             </div>
             <div className="field">
-              <label htmlFor="component-vendor">供应商</label>
+              <label htmlFor="component-vendor">{t("components.vendor")}</label>
               <Input
                 id="component-vendor"
+                name="vendor"
+                autoComplete="off"
                 value={form.vendor}
                 onChange={(event) => setForm({ ...form, vendor: event.target.value })}
               />
             </div>
             <div className="field">
-              <label htmlFor="component-type">类型</label>
+              <label htmlFor="component-type">{t("components.editorType")}</label>
               <Input
                 id="component-type"
+                name="type"
+                autoComplete="off"
                 value={form.type}
                 onChange={(event) => setForm({ ...form, type: event.target.value })}
               />
             </div>
             <div className="field">
-              <label htmlFor="component-cpe">CPE</label>
+              <label htmlFor="component-cpe">{t("components.cpe")}</label>
               <Input
                 id="component-cpe"
+                name="cpe"
+                autoComplete="off"
+                spellCheck={false}
                 value={form.cpe}
                 onChange={(event) => setForm({ ...form, cpe: event.target.value })}
               />
             </div>
             <div className="field">
-              <label htmlFor="component-license">许可证</label>
+              <label htmlFor="component-license">{t("components.license")}</label>
               <Input
                 id="component-license"
+                name="license"
+                autoComplete="off"
                 value={form.license}
                 onChange={(event) => setForm({ ...form, license: event.target.value })}
               />
             </div>
             <div className="field full">
-              <label htmlFor="component-repository">仓库链接</label>
+              <label htmlFor="component-repository">{t("components.repository")}</label>
               <Input
                 id="component-repository"
+                name="repository"
+                autoComplete="off"
                 value={form.repository}
                 onChange={(event) => setForm({ ...form, repository: event.target.value })}
               />
             </div>
             <div className="field full">
-              <label htmlFor="component-description">描述</label>
+              <label htmlFor="component-description">{t("components.description")}</label>
               <Textarea
                 id="component-description"
+                name="description"
+                autoComplete="off"
                 value={form.description}
                 onChange={(event) => setForm({ ...form, description: event.target.value })}
               />
             </div>
             <div className="editor-footer">
               {component && (
-                <Button variant="destructive" onClick={remove}>
-                  <Trash2 size={15} /> 删除组件
+                <Button variant="destructive" onClick={() => setConfirmDeleteOpen(true)}>
+                  <Trash2 size={15} /> {t("action.deleteComponent")}
                 </Button>
               )}
               <Button variant="outline" onClick={onClose}>
-                取消
+                {t("action.cancel")}
               </Button>
-              <Button onClick={save}>{component ? "保存修改" : "创建组件"}</Button>
+              <Button onClick={save}>{t(component ? "components.saveChanges" : "components.createSubmit")}</Button>
             </div>
           </div>
         </DialogContent>
       </Dialog>
       <ConfirmActionDialog
         open={confirmDeleteOpen}
-        title={`确认删除组件 ${component?.name ?? "这条组件"}？`}
-        description="关联候选关系也会被删除，此操作无法恢复。"
+        title={t("components.deleteTitle", { name: component?.name ?? t("components.name") })}
+        description={t("components.deleteDescription")}
         onOpenChange={setConfirmDeleteOpen}
         onConfirm={() => void remove()}
       />

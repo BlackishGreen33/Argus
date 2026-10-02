@@ -3,10 +3,11 @@
 import { Activity, Check, RotateCw } from "lucide-react";
 import React, { useEffect, useRef, useState } from "react";
 
+import { request } from "@/client/http";
 import { Button } from "@/components/ui/button";
+import { useI18n } from "@/i18n";
 import type { ImportJob, OverviewData } from "@/types/domain";
-import { request } from "@/utils/http";
-import { importStatusLabel, severityLabels } from "@/utils/labels";
+import { importStatusLabelKeys, severityLabelKeys } from "@/utils/labels";
 
 interface OverviewPageProps {
   data: OverviewData | null;
@@ -27,6 +28,7 @@ export const OverviewPage: React.FC<OverviewPageProps> = ({
   onToast,
   onRefresh,
 }) => {
+  const { t } = useI18n();
   const [job, setJob] = useState<ImportJob | null>(data?.latestImport ?? null);
   const [working, setWorking] = useState(false);
   const timerRef = useRef<number | null>(null);
@@ -46,7 +48,7 @@ export const OverviewPage: React.FC<OverviewPageProps> = ({
     try {
       const response = await request<{ data: ImportJob }>("/api/imports", { method: "POST" });
       setJob(response.data);
-      onToast("数据刷新已进入队列");
+      onToast(t("overview.refreshQueued"));
       timerRef.current = window.setInterval(async () => {
         try {
           const next = await request<{ data: ImportJob }>(`/api/imports/${response.data.id}`);
@@ -61,12 +63,12 @@ export const OverviewPage: React.FC<OverviewPageProps> = ({
           if (timerRef.current !== null) window.clearInterval(timerRef.current);
           timerRef.current = null;
           setWorking(false);
-          onToast(error instanceof Error ? error.message : "刷新状态失败");
+          onToast(error instanceof Error ? error.message : t("overview.refreshStatusFailed"));
         }
       }, 1000);
     } catch (error) {
       setWorking(false);
-      onToast(error instanceof Error ? error.message : "启动导入失败");
+      onToast(error instanceof Error ? error.message : t("overview.importStartFailed"));
     }
   };
   const merge = async () => {
@@ -75,10 +77,10 @@ export const OverviewPage: React.FC<OverviewPageProps> = ({
     try {
       const response = await request<{ data: ImportJob }>(`/api/imports/${job.id}/merge`, { method: "POST" });
       setJob(response.data);
-      onToast("预览已合并到正式数据");
+      onToast(t("overview.mergePreview"));
       await onRefresh();
     } catch (error) {
-      onToast(error instanceof Error ? error.message : "合并失败");
+      onToast(error instanceof Error ? error.message : t("overview.mergeFailed"));
     }
   };
   const retry = async () => {
@@ -87,9 +89,9 @@ export const OverviewPage: React.FC<OverviewPageProps> = ({
     try {
       const response = await request<{ data: ImportJob }>(`/api/imports/${job.id}/retry`, { method: "POST" });
       setJob(response.data);
-      onToast("已重新排队");
+      onToast(t("overview.requeued"));
     } catch (error) {
-      onToast(error instanceof Error ? error.message : "重试失败");
+      onToast(error instanceof Error ? error.message : t("overview.retryFailed"));
     }
   };
   const severityMax = Math.max(...(data?.severity.map((item) => item.count) ?? [1]), 1);
@@ -98,36 +100,47 @@ export const OverviewPage: React.FC<OverviewPageProps> = ({
     <>
       <div className="page-heading">
         <div>
-          <div className="eyebrow">安全态势</div>
-          <h1 className="serif">Overview</h1>
-          <p>让风险状态保持可见、可解释、可复现。</p>
+          <h1 className="display-title">{t("page.overview.title")}</h1>
+          <p>{t("page.overview.subtitle")}</p>
         </div>
         <Button onClick={startImport} disabled={working || authPending}>
           {working ? <RotateCw size={15} className="spin" /> : <RotateCw size={15} />}{" "}
-          {authPending ? "验证登录状态…" : working ? "刷新中…" : "刷新内建数据"}
+          {authPending ? t("components.verifyLogin") : working ? t("overview.refreshing") : t("overview.refreshData")}
         </Button>
       </div>
       {loading && !data ? (
-        <div className="empty-state">正在计算风险状态…</div>
+        <div className="empty-state">{t("overview.loading")}</div>
       ) : (
         <>
           <div className="dashboard-grid">
-            <Metric label="未处理 Critical" value={data?.openCritical ?? 0} note="需要优先确认" />
-            <Metric label="未处理 High" value={data?.openHigh ?? 0} note="等待分流" />
-            <Metric label="Argus Risk Index" value={`${data?.riskIndex ?? 0}`} note="工作台排序指标，不等同 CVSS" />
             <Metric
-              label="候选关系"
+              label={t("overview.metric.openCritical")}
+              value={data?.openCritical ?? 0}
+              note={t("overview.metric.openCriticalNote")}
+            />
+            <Metric
+              label={t("overview.metric.openHigh")}
+              value={data?.openHigh ?? 0}
+              note={t("overview.metric.openHighNote")}
+            />
+            <Metric
+              label={t("overview.metric.riskIndex")}
+              value={`${data?.riskIndex ?? 0}`}
+              note={t("overview.metric.riskIndexNote")}
+            />
+            <Metric
+              label={t("overview.metric.candidates")}
               value={data?.ecosystems.reduce((sum, item) => sum + item.count, 0) ?? 0}
-              note="需要人工确认"
+              note={t("overview.metric.candidatesNote")}
             />
           </div>
           <div className="overview-grid">
             <section className="panel">
-              <h3>严重度分布</h3>
+              <h3>{t("overview.severityDistribution")}</h3>
               <div className="bars">
                 {data?.severity.map((item) => (
                   <div className="bar-row" key={item.name}>
-                    <span>{severityLabels[item.name] ?? item.name}</span>
+                    <span>{t(severityLabelKeys[item.name] ?? item.name)}</span>
                     <div className="bar-track">
                       <div
                         className={`bar-fill ${item.name.toLowerCase()}`}
@@ -140,7 +153,7 @@ export const OverviewPage: React.FC<OverviewPageProps> = ({
               </div>
             </section>
             <section className="panel">
-              <h3>生态系统</h3>
+              <h3>{t("overview.ecosystems")}</h3>
               <div className="bars">
                 {data?.ecosystems.length ? (
                   data.ecosystems.map((item) => (
@@ -156,36 +169,33 @@ export const OverviewPage: React.FC<OverviewPageProps> = ({
                     </div>
                   ))
                 ) : (
-                  <div className="empty-state">暂无生态系统数据</div>
+                  <div className="empty-state">{t("overview.noEcosystems")}</div>
                 )}
               </div>
             </section>
             <section className="import-panel">
               <div className="import-top">
                 <div>
-                  <div className="section-label">导入流程</div>
-                  <h3>内建数据刷新</h3>
+                  <div className="section-label">{t("overview.importFlow")}</div>
+                  <h3>{t("overview.refresh")}</h3>
                   <div className="import-status">
-                    <Activity size={14} /> 状态：<strong>{job ? importStatusLabel(job.status) : "尚未运行"}</strong>
-                    {job?.retryCount ? ` · 已重试 ${job.retryCount} 次` : ""}
+                    <Activity size={14} /> {t("overview.status")}
+                    <strong>{job ? t(importStatusLabelKeys[job.status]) : t("overview.notRun")}</strong>
+                    {job?.retryCount ? ` ${t("triage.historySeparator")} ${job.retryCount}` : ""}
                   </div>
                 </div>
                 <Button variant="outline" onClick={startImport} disabled={working || authPending}>
-                  <RotateCw size={14} /> 重新预览
+                  <RotateCw size={14} /> {t("overview.preview")}
                 </Button>
               </div>
               {job?.summary && (
                 <div className="diff-list">
-                  <div className="diff-item">
-                    <strong>{job.summary.cves} 条 CVE</strong>来源记录已解析
-                  </div>
-                  <div className="diff-item">
-                    <strong>{job.summary.components} 个 Component</strong>可进入合并预览
-                  </div>
+                  <div className="diff-item">{t("overview.cvesParsed", { count: job.summary.cves })}</div>
+                  <div className="diff-item">{t("overview.componentsParsed", { count: job.summary.components })}</div>
                   {job.sampleDiffs?.map((diff) => (
                     <div className="diff-item" key={`${diff.entity}-${diff.key}`}>
                       <strong>
-                        {diff.entity} · {diff.key}
+                        {diff.entity} {t("triage.historySeparator")} {diff.key}
                       </strong>
                       {diff.change}
                     </div>
@@ -193,20 +203,20 @@ export const OverviewPage: React.FC<OverviewPageProps> = ({
                 </div>
               )}
               {job?.status === "PREVIEW_READY" && isAdmin && (
-                <div style={{ display: "flex", gap: 8, marginTop: 14 }}>
+                <div className="import-actions">
                   <Button onClick={merge}>
-                    <Check size={15} /> 合并更新
+                    <Check size={15} /> {t("overview.merge")}
                   </Button>
-                  <Button variant="outline" onClick={() => onToast("差异样本已在上方展示")}>
-                    查看差异
+                  <Button variant="outline" onClick={() => onToast(t("overview.sample"))}>
+                    {t("overview.viewDiff")}
                   </Button>
                 </div>
               )}
               {job?.status === "FAILED" && (
-                <div style={{ marginTop: 14, display: "flex", alignItems: "center", gap: 10 }}>
-                  <span className="cell-muted">{job.errorMessage ?? "导入失败"}</span>
+                <div className="import-error">
+                  <span className="cell-muted">{job.errorMessage ?? t("overview.importFailed")}</span>
                   <Button variant="outline" size="sm" onClick={retry} disabled={authPending}>
-                    重试
+                    {t("overview.retry")}
                   </Button>
                 </div>
               )}

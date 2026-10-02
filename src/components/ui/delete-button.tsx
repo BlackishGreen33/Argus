@@ -12,6 +12,7 @@ import {
 } from "motion/react";
 import { type ComponentProps, type ReactNode, useEffect, useRef, useState } from "react";
 
+import { useI18n } from "@/i18n";
 import { cn } from "@/utils/cn";
 
 const HINGE = "3px 6px";
@@ -43,16 +44,15 @@ const PRESS = {
 } as const;
 const INSTANT = { duration: 0 } as const;
 
-const SURFACE = "bg-[#F4F4F9] dark:bg-[#262626]";
-const RECESS = "bg-[#E7E7EF] dark:bg-[#1B1B1B]";
-const GLYPH = "text-[#868593] dark:text-[#9B9AA7]";
-const FOCUS = "outline-none focus-visible:ring-2 focus-visible:ring-[#868593]";
-const ACCENT = "#FF5F2E";
+const SURFACE = "bg-[var(--app-surface)]";
+const RECESS = "bg-[var(--app-surface-soft)]";
+const GLYPH = "text-[var(--app-ink-soft)]";
+const FOCUS = "outline-none focus-visible:ring-2 focus-visible:ring-[var(--ui-focus)]";
+const ACCENT = "var(--accent)";
 
-const LIFT =
-  "shadow-[0_0.5px_1px_rgba(0,0,0,0.05),0_1px_3px_rgba(0,0,0,0.08),inset_0_0.5px_0_rgba(255,255,255,0.9)] dark:shadow-[0_0.5px_1px_rgba(0,0,0,0.35),0_1.5px_4px_rgba(0,0,0,0.25),inset_0_0.5px_0_rgba(255,255,255,0.07)]";
+const LIFT = "shadow-[var(--ui-shadow-soft)]";
 
-const CIRCLE = `grid h-7 w-7 place-items-center rounded-full transition-colors duration-200 hover:bg-[#FAFAFD] dark:hover:bg-[#2C2C2C] ${FOCUS} ${SURFACE} ${LIFT}`;
+const CIRCLE = `grid h-7 w-7 place-items-center rounded-full transition-colors duration-200 hover:bg-[var(--app-surface-alt)] ${FOCUS} ${SURFACE} ${LIFT}`;
 
 const ICON = {
   viewBox: "0 0 24 24",
@@ -113,13 +113,19 @@ export function DeleteButton({
   className,
   onConfirm,
   onCancel,
-  label = "Delete",
-  confirmLabel = "Confirm delete",
-  cancelLabel = "Cancel",
-  deletedMessage = "Deleted",
-  keptMessage = "Kept",
+  label,
+  confirmLabel,
+  cancelLabel,
+  deletedMessage,
+  keptMessage,
   ...props
 }: DeleteButtonProps) {
+  const { t } = useI18n();
+  const resolvedLabel = label ?? t("action.delete");
+  const resolvedConfirmLabel = confirmLabel ?? t("action.confirmDelete");
+  const resolvedCancelLabel = cancelLabel ?? t("action.cancel");
+  const resolvedDeletedMessage = deletedMessage ?? t("action.deleted");
+  const resolvedKeptMessage = keptMessage ?? t("action.kept");
   const reduced = useReducedMotion() ?? false;
   const [open, setOpen] = useState(false);
   const [status, setStatus] = useState<Status>("idle");
@@ -169,7 +175,7 @@ export function DeleteButton({
       <motion.button
         ref={trigger}
         type="button"
-        aria-label={label}
+        aria-label={resolvedLabel}
         aria-expanded={open}
         onClick={() => {
           if (open) return resolve("kept");
@@ -231,7 +237,7 @@ export function DeleteButton({
       </motion.button>
 
       <span role="status" aria-live="polite" className="sr-only">
-        {status === "deleted" ? deletedMessage : status === "kept" ? keptMessage : ""}
+        {status === "deleted" ? resolvedDeletedMessage : status === "kept" ? resolvedKeptMessage : ""}
       </span>
 
       <AnimatePresence>
@@ -252,10 +258,10 @@ export function DeleteButton({
                 RECESS,
               )}
             />
-            <Circle label={confirmLabel} onClick={() => resolve("deleted")}>
+            <Circle label={resolvedConfirmLabel} onClick={() => resolve("deleted")}>
               <path d="M4 12.5 9.5 18 20 7" stroke={ACCENT} />
             </Circle>
-            <Circle label={cancelLabel} onClick={() => resolve("kept")}>
+            <Circle label={resolvedCancelLabel} onClick={() => resolve("kept")}>
               <path d="M6 6 18 18M18 6 6 18" />
             </Circle>
           </motion.div>

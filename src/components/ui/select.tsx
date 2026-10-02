@@ -75,6 +75,9 @@ function SelectContent({ className, children, ...props }: React.ComponentProps<t
       data-slot="select-content"
       placement="bottom start"
       offset={5}
+      onOpenChange={(isOpen) => {
+        if (!isOpen) state?.close();
+      }}
       className={cn(
         "z-50 min-w-[var(--trigger-width)] overflow-hidden rounded-lg border border-[var(--line)] bg-[var(--surface)] p-1 text-[var(--ink)] shadow-[var(--shadow)] outline-none",
         "[&[data-entering]]:animate-in [&[data-entering]]:fade-in-0 [&[data-entering]]:zoom-in-95",

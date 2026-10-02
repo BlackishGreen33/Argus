@@ -6,14 +6,8 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Separator } from "@/components/ui/separator";
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Switch } from "@/components/ui/switch";
-
-const themes = [
-  { id: "terracotta", label: "陶土红", color: "#a84d32" },
-  { id: "olive", label: "橄榄绿", color: "#5f765f" },
-  { id: "graphite", label: "石墨灰", color: "#4d5663" },
-] as const;
-
-export type ThemeAccent = (typeof themes)[number]["id"];
+import { THEME_OPTIONS, type ThemeAccent } from "@/constants/theme";
+import { type Locale, useI18n } from "@/i18n";
 
 interface SettingsPanelProps {
   open: boolean;
@@ -32,30 +26,48 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
   collapsed,
   onCollapsedChange,
 }) => {
+  const { locale, setLocale, t } = useI18n();
+  const languages: Array<{ id: Locale; key: string }> = [
+    { id: "zh-CN", key: "settings.language.zhCN" },
+    { id: "zh-TW", key: "settings.language.zhTW" },
+    { id: "en", key: "settings.language.en" },
+  ];
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent side="right" className="w-[min(390px,100vw)]">
+      <SheetContent side="right" className="w-[min(390px,100%)]">
         <SheetHeader>
-          <SheetTitle>设置</SheetTitle>
-          <SheetDescription>调整 Argus 的工作台偏好，这些设置只保存在当前浏览器。</SheetDescription>
+          <SheetTitle>{t("settings.title")}</SheetTitle>
+          <SheetDescription>{t("settings.description")}</SheetDescription>
         </SheetHeader>
         <div className="settings-body">
           <div>
-            <div className="section-label">主题色</div>
+            <div className="section-label">{t("settings.theme")}</div>
             <RadioGroup
               className="theme-grid"
               value={theme}
               onValueChange={(value) => onThemeChange(value as ThemeAccent)}
             >
-              {themes.map((item) => (
+              {THEME_OPTIONS.map((item) => (
                 <label
                   key={item.id}
                   htmlFor={`theme-${item.id}`}
                   className={`theme-option ${theme === item.id ? "active" : ""}`}
                 >
-                  <RadioGroupItem id={`theme-${item.id}`} value={item.id} aria-label={item.label} />
-                  <span className="theme-swatch" style={{ backgroundColor: item.color }} />
-                  <span>{item.label}</span>
+                  <RadioGroupItem id={`theme-${item.id}`} value={item.id} aria-label={t(item.key)} />
+                  <span className="theme-swatch" data-theme={item.id} aria-hidden="true" />
+                  <span>{t(item.key)}</span>
+                </label>
+              ))}
+            </RadioGroup>
+          </div>
+          <Separator />
+          <div>
+            <div className="section-label">{t("settings.language")}</div>
+            <RadioGroup className="language-grid" value={locale} onValueChange={(value) => setLocale(value as Locale)}>
+              {languages.map((item) => (
+                <label key={item.id} htmlFor={`language-${item.id}`} className="theme-option">
+                  <RadioGroupItem id={`language-${item.id}`} value={item.id} aria-label={t(item.key)} />
+                  <span>{t(item.key)}</span>
                 </label>
               ))}
             </RadioGroup>
@@ -63,22 +75,20 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
           <Separator />
           <div className="settings-row">
             <div>
-              <strong>侧栏显示</strong>
-              <p>折叠后只显示导航图标，展开后显示完整导航。</p>
+              <strong>{t("settings.sidebar")}</strong>
+              <p>{t("settings.sidebarDescription")}</p>
             </div>
             <div className="settings-toggle">
               <Switch
                 checked={collapsed}
                 onCheckedChange={onCollapsedChange}
-                aria-label={collapsed ? "展开侧栏" : "折叠侧栏"}
-                title={collapsed ? "展开侧栏" : "折叠侧栏"}
+                aria-label={t(collapsed ? "settings.expandSidebar" : "settings.collapseSidebar")}
+                title={t(collapsed ? "settings.expandSidebar" : "settings.collapseSidebar")}
               />
-              <span>{collapsed ? "已折叠" : "已展开"}</span>
+              <span>{t(collapsed ? "settings.collapsed" : "settings.expanded")}</span>
             </div>
           </div>
-          <div className="settings-hint">
-            全局搜索：<kbd>⌘／Ctrl</kbd> + <kbd>K</kbd>；关闭抽屉或面板：<kbd>Esc</kbd>。
-          </div>
+          <div className="settings-hint">{t("settings.keyboardHint")}</div>
         </div>
       </SheetContent>
     </Sheet>

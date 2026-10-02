@@ -2,11 +2,12 @@
 
 import { Command as CommandPrimitive } from "cmdk";
 import { cn } from "cn";
-import { CheckIcon, SearchIcon } from "lucide-react";
+import { CheckIcon, SearchIcon, XIcon } from "lucide-react";
 import * as React from "react";
 
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { InputGroup, InputGroupAddon } from "@/components/ui/input-group";
+import { useI18n } from "@/i18n";
 
 function Command({ className, ...props }: React.ComponentProps<typeof CommandPrimitive>) {
   return (
@@ -22,8 +23,8 @@ function Command({ className, ...props }: React.ComponentProps<typeof CommandPri
 }
 
 function CommandDialog({
-  title = "Command Palette",
-  description = "Search for a command to run...",
+  title,
+  description,
   children,
   className,
   showCloseButton = false,
@@ -34,11 +35,12 @@ function CommandDialog({
   className?: string;
   showCloseButton?: boolean;
 }) {
+  const { t } = useI18n();
   return (
     <Dialog {...props}>
       <DialogHeader className="sr-only">
-        <DialogTitle>{title}</DialogTitle>
-        <DialogDescription>{description}</DialogDescription>
+        <DialogTitle>{title ?? t("search.command.title")}</DialogTitle>
+        <DialogDescription>{description ?? t("search.command.description")}</DialogDescription>
       </DialogHeader>
       <DialogContent
         className={cn("top-1/3 translate-y-0 overflow-hidden rounded-xl! p-0", className)}
@@ -50,18 +52,39 @@ function CommandDialog({
   );
 }
 
-function CommandInput({ className, ...props }: React.ComponentProps<typeof CommandPrimitive.Input>) {
+function CommandInput({
+  className,
+  value,
+  onValueChange,
+  ...props
+}: React.ComponentProps<typeof CommandPrimitive.Input>) {
+  const { t } = useI18n();
   return (
     <div data-slot="command-input-wrapper" className="p-1 pb-0">
       <InputGroup className="border-input/30 bg-input/30 h-8! rounded-lg! shadow-none! *:data-[slot=input-group-addon]:pl-2!">
         <CommandPrimitive.Input
           data-slot="command-input"
           className={cn("w-full text-sm outline-hidden disabled:cursor-not-allowed disabled:opacity-50", className)}
+          value={value}
+          onValueChange={onValueChange}
           {...props}
         />
         <InputGroupAddon>
           <SearchIcon className="size-4 shrink-0 opacity-50" />
         </InputGroupAddon>
+        {value && (
+          <InputGroupAddon align="inline-end">
+            <button
+              type="button"
+              className="input-clear command-input-clear"
+              aria-label={t("search.clear.global")}
+              onMouseDown={(event) => event.preventDefault()}
+              onClick={() => onValueChange?.("")}
+            >
+              <XIcon size={15} aria-hidden="true" />
+            </button>
+          </InputGroupAddon>
+        )}
       </InputGroup>
     </div>
   );

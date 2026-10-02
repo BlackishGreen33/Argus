@@ -3,14 +3,15 @@
 import { Activity, Lock, X } from "lucide-react";
 import React, { useState } from "react";
 
+import { request } from "@/client/http";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { useI18n } from "@/i18n";
 import type { CveRecord } from "@/types/domain";
-import { request } from "@/utils/http";
-import { severityLabels } from "@/utils/labels";
+import { severityLabelKeys } from "@/utils/labels";
 
 interface CveEditorProps {
   cve: CveRecord;
@@ -19,6 +20,7 @@ interface CveEditorProps {
 }
 
 export const CveEditor: React.FC<CveEditorProps> = ({ cve, onClose, onSaved }) => {
+  const { t } = useI18n();
   const [form, setForm] = useState({
     title: cve.title ?? "",
     description: cve.description ?? "",
@@ -48,7 +50,7 @@ export const CveEditor: React.FC<CveEditorProps> = ({ cve, onClose, onSaved }) =
       });
       onSaved(response.data);
     } catch (error) {
-      window.alert(error instanceof Error ? error.message : "保存失败");
+      window.alert(error instanceof Error ? error.message : t("triage.saveFailed"));
     } finally {
       setSaving(false);
     }
@@ -56,52 +58,64 @@ export const CveEditor: React.FC<CveEditorProps> = ({ cve, onClose, onSaved }) =
   return (
     <Dialog open onOpenChange={(open) => !open && onClose()}>
       <DialogContent className="editor max-w-[920px] p-0" showCloseButton={false}>
-        <DialogTitle className="sr-only">编辑漏洞记录</DialogTitle>
-        <DialogDescription className="sr-only">修改漏洞标题、描述、评分和受影响版本。</DialogDescription>
+        <DialogTitle className="sr-only">{t("triage.editRecord")}</DialogTitle>
+        <DialogDescription className="sr-only">{t("triage.editTitle")}</DialogDescription>
         <div className="editor-header">
           <div>
-            <div className="eyebrow">Triage / {cve.cveId}</div>
-            <h2>编辑记录</h2>
+            <div className="eyebrow">
+              {t("page.triage.title")} / {cve.cveId}
+            </div>
+            <h2>{t("triage.editRecord")}</h2>
             <span className="pill">
-              <Activity size={13} /> 未保存的本地修改
+              <Activity size={13} /> {t("triage.unsaved")}
             </span>
           </div>
-          <Button variant="ghost" size="icon-sm" className="drawer-close" onClick={onClose} aria-label="关闭编辑">
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            className="drawer-close"
+            onClick={onClose}
+            aria-label={t("action.closeEditor")}
+          >
             <X size={20} />
           </Button>
         </div>
         <div className="editor-form">
           <div className="field">
-            <label htmlFor="cve-title">标题</label>
+            <label htmlFor="cve-title">{t("triage.titleLabel")}</label>
             <Input
               id="cve-title"
+              name="title"
+              autoComplete="off"
               value={form.title}
               onChange={(event) => setForm({ ...form, title: event.target.value })}
             />
           </div>
           <div className="field">
-            <label htmlFor="cve-severity">严重度</label>
+            <label htmlFor="cve-severity">{t("filter.severity")}</label>
             <Select
               value={form.severity}
-              aria-label="严重度"
+              aria-label={t("filter.severity")}
               onValueChange={(value) => setForm({ ...form, severity: value })}
             >
-              <SelectTrigger id="cve-severity" aria-label="严重度">
+              <SelectTrigger id="cve-severity" aria-label={t("filter.severity")}>
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                {Object.entries(severityLabels).map(([value, label]) => (
+                {Object.entries(severityLabelKeys).map(([value, key]) => (
                   <SelectItem key={value} value={value}>
-                    {label}
+                    {t(key)}
                   </SelectItem>
                 ))}
               </SelectContent>
             </Select>
           </div>
           <div className="field">
-            <label htmlFor="cve-score">CVSS v3</label>
+            <label htmlFor="cve-score">{t("triage.cvssLabel")}</label>
             <Input
               id="cve-score"
+              name="cvss-score"
+              autoComplete="off"
               type="number"
               min="0"
               max="10"
@@ -111,47 +125,66 @@ export const CveEditor: React.FC<CveEditorProps> = ({ cve, onClose, onSaved }) =
             />
           </div>
           <div className="field">
-            <label>
-              来源识别 <Lock size={12} />
+            <label htmlFor="cve-source-identification">
+              {t("triage.sourceIdentification")} <Lock size={12} />
             </label>
-            <Input value={`${cve.sourceName ?? "NVD"} · ${cve.sourceId}`} disabled />
+            <Input
+              id="cve-source-identification"
+              name="source-identification"
+              autoComplete="off"
+              value={`${cve.sourceName ?? t("triage.sourceUnknown")} ${t("triage.historySeparator")} ${cve.sourceId}`}
+              disabled
+            />
           </div>
           <div className="field full">
-            <label htmlFor="cve-description">描述</label>
+            <label htmlFor="cve-description">{t("triage.descriptionLabel")}</label>
             <Textarea
               id="cve-description"
+              name="description"
+              autoComplete="off"
               value={form.description}
               onChange={(event) => setForm({ ...form, description: event.target.value })}
             />
           </div>
           <div className="field">
-            <label htmlFor="cve-versions">受影响版本</label>
+            <label htmlFor="cve-versions">{t("triage.versionsLabel")}</label>
             <Input
               id="cve-versions"
+              name="affected-versions"
+              autoComplete="off"
               value={form.affectedVersions}
               onChange={(event) => setForm({ ...form, affectedVersions: event.target.value })}
             />
           </div>
           <div className="field">
-            <label htmlFor="cve-cwe">CWE</label>
+            <label htmlFor="cve-cwe">{t("triage.cweLabel")}</label>
             <Input
               id="cve-cwe"
+              name="cwe-ids"
+              autoComplete="off"
+              spellCheck={false}
               value={form.cweIds}
               onChange={(event) => setForm({ ...form, cweIds: event.target.value })}
             />
           </div>
           <div className="field">
-            <label>
-              来源链接 <Lock size={12} />
+            <label htmlFor="cve-source-link">
+              {t("triage.sourceLink")} <Lock size={12} />
             </label>
-            <Input value={cve.sourceLink ?? "—"} disabled />
+            <Input
+              id="cve-source-link"
+              name="source-link"
+              autoComplete="off"
+              value={cve.sourceLink ?? t("triage.noValue")}
+              disabled
+            />
           </div>
           <div className="editor-footer">
             <Button variant="outline" onClick={onClose}>
-              取消
+              {t("action.cancel")}
             </Button>
             <Button onClick={save} disabled={saving}>
-              {saving ? "保存中…" : "保存修改"}
+              {saving ? t("triage.saving") : t("triage.saveChanges")}
             </Button>
           </div>
         </div>

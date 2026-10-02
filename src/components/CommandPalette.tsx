@@ -13,6 +13,7 @@ import {
   CommandList,
   CommandShortcut,
 } from "@/components/ui/command";
+import { useI18n } from "@/i18n";
 
 interface CommandPaletteResult {
   type: string;
@@ -30,21 +31,29 @@ interface CommandPaletteProps {
 }
 
 export const CommandPalette: React.FC<CommandPaletteProps> = ({ open, query, results, onQueryChange, onClose }) => {
+  const { t } = useI18n();
   return (
     <CommandDialog
       open={open}
       onOpenChange={(next) => !next && onClose()}
-      title="全局搜索"
-      description="搜索 CVE、组件或 PURL"
+      title={t("search.command.title")}
+      description={t("search.command.description")}
       className="command-dialog"
     >
       <Command shouldFilter={false}>
-        <CommandInput value={query} onValueChange={onQueryChange} placeholder="搜索 CVE、组件或 PURL…" />
+        <CommandInput
+          name="global-command-search"
+          autoComplete="off"
+          aria-label={t("search.global.label")}
+          value={query}
+          onValueChange={onQueryChange}
+          placeholder={t("search.global.placeholder")}
+        />
         <CommandList>
-          {!query && <CommandEmpty>输入关键词，搜索全局 CVE 与组件</CommandEmpty>}
-          {query && !results.length && <CommandEmpty>没有匹配的全局结果</CommandEmpty>}
+          {!query && <CommandEmpty>{t("search.command.empty")}</CommandEmpty>}
+          {query && !results.length && <CommandEmpty>{t("search.command.noResults")}</CommandEmpty>}
           {results.length > 0 && (
-            <CommandGroup heading="全局结果">
+            <CommandGroup heading={t("search.command.group")}>
               {results.map((result) => (
                 <CommandItem key={`${result.type}-${result.label}`} value={result.label} onSelect={result.onClick}>
                   {result.type === "CVE" ? <FileSearch /> : <PackageSearch />}

@@ -1,6 +1,6 @@
 "use client";
 
-import { Filter, Pencil, Plus, RotateCw, Search } from "lucide-react";
+import { Filter, Pencil, Plus, RotateCw, Search, X } from "lucide-react";
 import React, { useMemo, useState } from "react";
 
 import { Button } from "@/components/ui/button";
@@ -21,10 +21,10 @@ import {
   PaginationPrevious,
 } from "@/components/ui/pagination";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { COMPONENT_PAGE_SIZE } from "@/constants/app";
+import { useI18n } from "@/i18n";
 import type { ComponentRecord } from "@/types/domain";
 import { formatDate } from "@/utils/format";
-
-const PAGE_SIZE = 25;
 
 interface ComponentsPageProps {
   components: ComponentRecord[];
@@ -51,6 +51,7 @@ export const ComponentsPage: React.FC<ComponentsPageProps> = ({
   onEdit,
   onCreate,
 }) => {
+  const { locale, t } = useI18n();
   const [page, setPage] = useState(1);
   const [typeFilter, setTypeFilter] = useState("");
   const visibleComponents = useMemo(
@@ -64,42 +65,58 @@ export const ComponentsPage: React.FC<ComponentsPageProps> = ({
       ),
     [components, query, typeFilter],
   );
-  const pageCount = Math.max(1, Math.ceil(visibleComponents.length / PAGE_SIZE));
+  const pageCount = Math.max(1, Math.ceil(visibleComponents.length / COMPONENT_PAGE_SIZE));
   const currentPage = Math.min(page, pageCount);
-  const pageItems = visibleComponents.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
+  const pageItems = visibleComponents.slice((currentPage - 1) * COMPONENT_PAGE_SIZE, currentPage * COMPONENT_PAGE_SIZE);
 
   return (
     <>
       <div className="page-heading">
         <div>
-          <div className="eyebrow">供应链证据</div>
-          <h1 className="serif">Components</h1>
-          <p>维护可追踪、可复核的组件元数据。</p>
+          <h1 className="display-title">{t("page.components.title")}</h1>
+          <p>{t("page.components.subtitle")}</p>
         </div>
         <Button onClick={isAdmin ? onCreate : onLogin} disabled={authPending}>
-          <Plus size={16} /> {authPending ? "验证登录状态…" : "新增组件"}
+          <Plus size={16} /> {authPending ? t("components.verifyLogin") : t("components.create")}
         </Button>
       </div>
       <div className="filter-row">
         <div className="local-search">
           <Search size={17} aria-hidden="true" />
           <Input
+            name="component-search"
+            autoComplete="off"
             value={query}
             onChange={(event) => {
               setQuery(event.target.value);
               setPage(1);
             }}
-            placeholder="搜索 PURL、名称或供应商…"
-            aria-label="筛选组件列表"
+            placeholder={t("search.local.component.placeholder")}
+            aria-label={t("search.local.component.label")}
           />
+          {query && (
+            <button
+              type="button"
+              className="input-clear"
+              aria-label={t("search.clear.component")}
+              onMouseDown={(event) => event.preventDefault()}
+              onClick={() => {
+                setQuery("");
+                setPage(1);
+              }}
+            >
+              <X size={15} aria-hidden="true" />
+            </button>
+          )}
         </div>
         <Button variant="outline" onClick={onRefresh}>
-          <RotateCw size={15} /> 刷新
+          <RotateCw size={15} /> {t("action.refresh")}
         </Button>
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button variant="outline" aria-label="按组件类型筛选">
-              <Filter size={15} /> {typeFilter ? `类型：${typeFilter}` : "类型"}
+            <Button variant="outline" aria-label={t("components.filterType")}>
+              <Filter size={15} />{" "}
+              {typeFilter ? t("components.typeFilter", { type: typeFilter }) : t("components.type")}
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
@@ -110,39 +127,39 @@ export const ComponentsPage: React.FC<ComponentsPageProps> = ({
                 setPage(1);
               }}
             >
-              <DropdownMenuRadioItem value="all">全部类型</DropdownMenuRadioItem>
-              <DropdownMenuRadioItem value="maven">Maven</DropdownMenuRadioItem>
-              <DropdownMenuRadioItem value="npm">npm</DropdownMenuRadioItem>
-              <DropdownMenuRadioItem value="pypi">PyPI</DropdownMenuRadioItem>
-              <DropdownMenuRadioItem value="golang">Go</DropdownMenuRadioItem>
+              <DropdownMenuRadioItem value="all">{t("components.allTypes")}</DropdownMenuRadioItem>
+              <DropdownMenuRadioItem value="maven">{t("components.type.maven")}</DropdownMenuRadioItem>
+              <DropdownMenuRadioItem value="npm">{t("components.type.npm")}</DropdownMenuRadioItem>
+              <DropdownMenuRadioItem value="pypi">{t("components.type.pypi")}</DropdownMenuRadioItem>
+              <DropdownMenuRadioItem value="golang">{t("components.type.golang")}</DropdownMenuRadioItem>
             </DropdownMenuRadioGroup>
           </DropdownMenuContent>
         </DropdownMenu>
       </div>
       <div className="table-shell">
-        <Table className="argus-table min-w-[880px]">
+        <Table className="components-table argus-table">
           <TableHeader>
             <TableRow>
-              <TableHead className="w-[31%]">PURL</TableHead>
-              <TableHead className="w-24">类型</TableHead>
-              <TableHead>名称</TableHead>
-              <TableHead className="w-32">版本</TableHead>
-              <TableHead className="w-32">记录时间</TableHead>
-              <TableHead className="w-16">操作</TableHead>
+              <TableHead className="w-[31%]">{t("components.purl")}</TableHead>
+              <TableHead className="w-24">{t("components.type")}</TableHead>
+              <TableHead>{t("components.name")}</TableHead>
+              <TableHead className="w-32">{t("components.version")}</TableHead>
+              <TableHead className="w-32">{t("components.recordTime")}</TableHead>
+              <TableHead className="w-16">{t("components.actions")}</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {loading && (
               <TableRow>
                 <TableCell colSpan={6}>
-                  <div className="empty-state">正在加载组件…</div>
+                  <div className="empty-state">{t("components.loading")}</div>
                 </TableCell>
               </TableRow>
             )}
             {!loading && !pageItems.length && (
               <TableRow>
                 <TableCell colSpan={6}>
-                  <div className="empty-state">暂无组件记录</div>
+                  <div className="empty-state">{t("components.empty")}</div>
                 </TableCell>
               </TableRow>
             )}
@@ -160,28 +177,40 @@ export const ComponentsPage: React.FC<ComponentsPageProps> = ({
                     }
                   }}
                 >
-                  <TableCell className="max-w-[300px]">
+                  <TableCell className="component-purl-cell">
                     <div className="cell-title">
-                      <strong title={component.purl}>{component.purl}</strong>
-                      <span title={component.cpe ?? "未提供 CPE"}>{component.cpe ?? "未提供 CPE"}</span>
+                      <strong title={component.purl} translate="no">
+                        {component.purl}
+                      </strong>
+                      <span title={component.cpe ?? t("components.cpeMissing")}>
+                        {component.cpe ?? t("components.cpeMissing")}
+                      </span>
                     </div>
                   </TableCell>
-                  <TableCell>{component.type ?? "—"}</TableCell>
+                  <TableCell>
+                    {component.type
+                      ? t(`components.type.${component.type.toLowerCase()}`)
+                      : t("components.type.unknown")}
+                  </TableCell>
                   <TableCell
-                    className="max-w-[220px] truncate"
+                    className="component-name-cell truncate"
                     title={`${component.vendor ? `${component.vendor} / ` : ""}${component.name}`}
                   >
-                    {component.vendor ? `${component.vendor} / ` : ""}
-                    {component.name}
+                    <span translate="no">
+                      {component.vendor ? `${component.vendor} / ` : ""}
+                      {component.name}
+                    </span>
                   </TableCell>
                   <TableCell>{component.version}</TableCell>
-                  <TableCell className="cell-muted">{formatDate(component.recordTime)}</TableCell>
+                  <TableCell className="cell-muted">
+                    {formatDate(component.recordTime, locale, t("triage.noValue"))}
+                  </TableCell>
                   <TableCell className="w-12" onClick={(event) => event.stopPropagation()}>
                     <Button
                       variant="ghost"
                       size="icon-sm"
-                      aria-label={`编辑 ${component.name}`}
-                      title="编辑组件"
+                      aria-label={t("components.editAria", { name: component.name })}
+                      title={t("action.editComponent")}
                       onClick={() => (isAdmin ? onEdit(component) : onLogin())}
                     >
                       <Pencil size={15} />
@@ -193,9 +222,9 @@ export const ComponentsPage: React.FC<ComponentsPageProps> = ({
         </Table>
       </div>
       <div className="table-footer">
-        <span>共 {visibleComponents.length} 个组件</span>
+        <span>{t("components.total", { count: visibleComponents.length })}</span>
         <div className="pagination-tools">
-          <span className="cell-muted">PURL 创建后锁定</span>
+          <span className="cell-muted">{t("components.purlLocked")}</span>
           <Pagination className="pagination-inline">
             <PaginationContent>
               <PaginationItem>

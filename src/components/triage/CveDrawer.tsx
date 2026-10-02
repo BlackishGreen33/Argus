@@ -9,10 +9,11 @@ import { DeleteButton } from "@/components/ui/delete-button";
 import { Separator } from "@/components/ui/separator";
 import { Sheet, SheetContent, SheetDescription, SheetFooter, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useI18n } from "@/i18n";
 import type { CveRecord, TriageStatus } from "@/types/domain";
 import type { DrawerTab } from "@/types/ui";
 import { formatDate } from "@/utils/format";
-import { severityLabels, statusLabels } from "@/utils/labels";
+import { severityLabelKeys, statusLabelKeys } from "@/utils/labels";
 
 interface CveDrawerProps {
   cve: CveRecord;
@@ -45,23 +46,31 @@ export const CveDrawer: React.FC<CveDrawerProps> = ({
   onDelete,
   onCandidate,
 }) => {
+  const { locale, t } = useI18n();
+  const tabs: Array<{ value: DrawerTab; key: string }> = [
+    { value: "Overview", key: "triage.tab.overview" },
+    { value: "Impact", key: "triage.tab.impact" },
+    { value: "History", key: "triage.tab.history" },
+  ];
   return (
     <Sheet open onOpenChange={(open) => !open && onClose()}>
       <SheetContent
         side="right"
-        className="argus-drawer-sheet w-[min(430px,100vw)] p-0"
-        aria-label={`${cve.cveId} 漏洞详情`}
+        className="argus-drawer-sheet w-[min(430px,100%)] p-0"
+        aria-label={t("triage.cveDetails", { id: cve.cveId })}
         aria-describedby="cve-drawer-description"
       >
         <SheetHeader className="border-border border-b px-5 py-5 pr-14 text-left">
           <div className="drawer-cve">{cve.cveId}</div>
           <Badge variant="secondary" className="severity-badge w-fit">
             <i className={`severity-dot ${cve.severity}`} />
-            {severityLabels[cve.severity ?? ""] ?? cve.severity}
+            {t(severityLabelKeys[cve.severity ?? ""] ?? "triage.noValue")}
           </Badge>
-          <SheetTitle className="serif text-2xl leading-tight font-normal">{cve.title ?? "未命名漏洞"}</SheetTitle>
+          <SheetTitle className="display-title text-2xl leading-tight font-normal">
+            {cve.title ?? t("triage.unnamed")}
+          </SheetTitle>
           <SheetDescription id="cve-drawer-description" className="sr-only">
-            {cve.cveId} 漏洞详情，包含摘要、影响组件和处理历史。
+            {t("triage.cveDetails", { id: cve.cveId })}
           </SheetDescription>
         </SheetHeader>
 
@@ -69,12 +78,12 @@ export const CveDrawer: React.FC<CveDrawerProps> = ({
           className="drawer-tabs"
           value={tab}
           onValueChange={(value) => setTab(value as DrawerTab)}
-          aria-label="漏洞详情分区"
+          aria-label={t("triage.detailsTabs")}
         >
           <TabsList variant="line" className="drawer-tabs-list">
-            {(["Overview", "Impact", "History"] as DrawerTab[]).map((item) => (
-              <TabsTrigger key={item} value={item} className="drawer-tab">
-                {item}
+            {tabs.map((item) => (
+              <TabsTrigger key={item.value} value={item.value} className="drawer-tab">
+                {t(item.key)}
               </TabsTrigger>
             ))}
           </TabsList>
@@ -83,11 +92,11 @@ export const CveDrawer: React.FC<CveDrawerProps> = ({
         <div className="drawer-scroll">
           {tab === "Overview" && (
             <>
-              <div className="section-label">摘要</div>
-              <p className="summary">{cve.description ?? "暂无描述"}</p>
-              <div className="section-label">本地处理状态</div>
+              <div className="section-label">{t("triage.summary")}</div>
+              <p className="summary">{cve.description ?? t("triage.summaryMissing")}</p>
+              <div className="section-label">{t("triage.localStatus")}</div>
               <div className="status-control">
-                {(Object.keys(statusLabels) as TriageStatus[]).map((status) => (
+                {(Object.keys(statusLabelKeys) as TriageStatus[]).map((status) => (
                   <Button
                     key={status}
                     variant={cve.triageStatus === status ? "default" : "outline"}
@@ -96,29 +105,36 @@ export const CveDrawer: React.FC<CveDrawerProps> = ({
                     aria-pressed={cve.triageStatus === status}
                     onClick={() => (isAdmin ? onStatus(cve.cveId, status) : onLogin())}
                   >
-                    {statusLabels[status]}
+                    {t(statusLabelKeys[status])}
                   </Button>
                 ))}
               </div>
               <div className="score">
                 <div className="score-top">
                   <div>
-                    <div className="section-label">评分详情</div>
-                    <div className="score-number">{cve.cvssScoreV3 ?? cve.cvssScoreV4 ?? "—"}</div>
+                    <div className="section-label">{t("triage.scoreDetails")}</div>
+                    <div className="score-number">{cve.cvssScoreV3 ?? cve.cvssScoreV4 ?? t("triage.noValue")}</div>
                   </div>
-                  <span className="cell-muted whitespace-nowrap">CVSS v3.1</span>
+                  <span className="cell-muted whitespace-nowrap">{t("triage.cvssVersion")}</span>
                 </div>
                 <div className="score-track">
                   <span style={{ width: `${Math.min((cve.cvssScoreV3 ?? cve.cvssScoreV4 ?? 0) * 10, 100)}%` }} />
                 </div>
               </div>
-              <DetailField label="受影响版本" value={cve.affectedVersions.join(", ") || "未提供"} />
-              <DetailField label="来源" value={cve.sourceName ?? "NVD"} locked />
+              <DetailField
+                label={t("triage.versionsLabel")}
+                value={cve.affectedVersions.join(", ") || t("triage.notProvided")}
+              />
+              <DetailField
+                label={t("triage.detailSource")}
+                value={cve.sourceName ?? t("triage.sourceUnknown")}
+                locked
+              />
             </>
           )}
           {tab === "Impact" && (
             <>
-              <div className="section-label">受影响组件</div>
+              <div className="section-label">{t("triage.affectedComponents")}</div>
               <div className="related-list">
                 {cve.candidates.map((candidate) => (
                   <div className="related-item" key={candidate.id}>
@@ -131,35 +147,36 @@ export const CveDrawer: React.FC<CveDrawerProps> = ({
                       </span>
                       <Badge variant="outline" className={`candidate-tag ${candidate.status}`}>
                         {candidate.status === "CANDIDATE"
-                          ? "候选"
+                          ? t("triage.candidate")
                           : candidate.status === "CONFIRMED"
-                            ? "已确认"
-                            : "已排除"}
+                            ? t("triage.candidateConfirmedLabel")
+                            : t("triage.candidateRejectedLabel")}
                       </Badge>
                     </div>
                     <span className="confidence">
-                      {candidate.matchReason} · 置信度 {Math.round((candidate.confidence ?? 0) * 100)}%
+                      {t(candidate.matchReason)} {t("triage.historySeparator")}{" "}
+                      {t("triage.confidence", { percent: Math.round((candidate.confidence ?? 0) * 100) })}
                     </span>
                     {candidate.status === "CANDIDATE" && (
                       <div className="candidate-actions">
                         {isAdmin ? (
                           <>
                             <Button size="sm" variant="outline" onClick={() => onCandidate(candidate.id, "CONFIRMED")}>
-                              <Check size={13} /> 确认
+                              <Check size={13} /> {t("action.confirm")}
                             </Button>
                             <Button size="sm" variant="outline" onClick={() => onCandidate(candidate.id, "REJECTED")}>
-                              排除
+                              {t("action.reject")}
                             </Button>
                           </>
                         ) : (
-                          <span className="cell-muted">登录后确认候选关系</span>
+                          <span className="cell-muted">{t("triage.loginCandidate")}</span>
                         )}
                       </div>
                     )}
                   </div>
                 ))}
               </div>
-              {!cve.candidates.length && <div className="empty-state">暂无候选关联</div>}
+              {!cve.candidates.length && <div className="empty-state">{t("triage.noCandidates")}</div>}
             </>
           )}
           {tab === "History" && (
@@ -170,20 +187,25 @@ export const CveDrawer: React.FC<CveDrawerProps> = ({
                     <div className="min-w-0">
                       <strong className="block">
                         {event.action === "STATUS_CHANGED"
-                          ? `状态改为「${statusLabels[String(event.metadata?.status) as TriageStatus] ?? String(event.metadata?.status ?? "未知")}」`
+                          ? t("triage.historyStatusChanged", {
+                              status: t(
+                                statusLabelKeys[String(event.metadata?.status) as TriageStatus] ??
+                                  "triage.historyUnknown",
+                              ),
+                            })
                           : event.action === "CVE_UPDATED"
-                            ? "更新了漏洞内容"
+                            ? t("triage.historyUpdated")
                             : event.action}
                       </strong>
-                      <span>{event.actorEmail ?? "Admin"}</span>
+                      <span>{event.actorEmail ?? t("triage.historyAdmin")}</span>
                     </div>
                     <span className="audit-date">
-                      <Clock3 size={13} /> {formatDate(event.createdAt)}
+                      <Clock3 size={13} /> {formatDate(event.createdAt, locale, t("triage.noValue"))}
                     </span>
                   </div>
                 ))
               ) : (
-                <div className="empty-state">暂无状态历史</div>
+                <div className="empty-state">{t("triage.noHistory")}</div>
               )}
             </div>
           )}
@@ -194,26 +216,26 @@ export const CveDrawer: React.FC<CveDrawerProps> = ({
           {isAdmin ? (
             <>
               <Button className="flex-1" onClick={onEdit}>
-                <Pencil size={15} /> 编辑记录
+                <Pencil size={15} /> {t("triage.editRecord")}
               </Button>
               <DeleteButton
                 className="cve-delete-button"
-                label="删除漏洞"
-                confirmLabel="确认删除漏洞"
-                cancelLabel="取消删除"
-                deletedMessage="漏洞已删除"
-                keptMessage="已取消删除"
+                label={t("triage.deleteVulnerability")}
+                confirmLabel={t("triage.confirmDeleteVulnerability")}
+                cancelLabel={t("triage.cancelDelete")}
+                deletedMessage={t("triage.deletedVulnerability")}
+                keptMessage={t("triage.cancelDelete")}
                 onConfirm={onDelete}
               />
             </>
           ) : (
             <Button className="flex-1" onClick={onLogin}>
-              <LogIn size={15} /> 登录后编辑
+              <LogIn size={15} /> {t("action.loginAfter")}
             </Button>
           )}
           <Button variant="outline" asChild>
             <a href={cve.sourceLink ?? "#"} target="_blank" rel="noreferrer">
-              <ArrowUpRight size={15} /> 来源
+              <ArrowUpRight size={15} /> {t("action.source")}
             </a>
           </Button>
         </SheetFooter>
