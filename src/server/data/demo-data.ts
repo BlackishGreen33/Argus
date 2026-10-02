@@ -188,7 +188,7 @@ export const demoCves: CveRecord[] = source.map(([cveId, title, packageName, sev
             componentPurl: component.purl,
             componentName: `${component.vendor ?? ""} ${component.name}`.trim(),
             cpe: component.cpe,
-            matchReason: "CPE vendor/name prefix match",
+            matchReason: "triage.matchReasonPrefix",
             status: index % 4 === 0 ? "CONFIRMED" : "CANDIDATE",
             confidence: index % 4 === 0 ? 0.92 : 0.68,
           },

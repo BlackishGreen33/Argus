@@ -5,16 +5,18 @@ import type { Metadata } from "next";
 import { Geist } from "next/font/google";
 import type React from "react";
 
-import { QueryProvider } from "@/components/QueryProvider";
+import { QueryProvider } from "@/client/providers/QueryProvider";
 import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { I18nProvider } from "@/i18n";
+import { serverMessages } from "@/i18n/server";
 import { cn } from "@/utils/cn";
 
 const geist = Geist({ subsets: ["latin"], variable: "--font-sans" });
 
 export const metadata: Metadata = {
-  title: "Argus · Vulnerability Triage",
-  description: "A calm workspace for turning dependency evidence into security decisions.",
+  title: serverMessages.meta.title,
+  description: serverMessages.meta.description,
 };
 
 interface RootLayoutProps {
@@ -26,8 +28,10 @@ const RootLayout: React.FC<RootLayoutProps> = ({ children }) => {
     <html lang="zh-CN" className={cn("font-sans", geist.variable)}>
       <body>
         <TooltipProvider>
-          <QueryProvider>{children}</QueryProvider>
-          <Toaster position="top-right" />
+          <I18nProvider>
+            <QueryProvider>{children}</QueryProvider>
+          </I18nProvider>
+          <Toaster position="bottom-right" />
         </TooltipProvider>
       </body>
     </html>

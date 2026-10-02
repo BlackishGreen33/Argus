@@ -1,3 +1,5 @@
+import "server-only";
+
 import { Client, Receiver } from "@upstash/qstash";
 
 const token = process.env.QSTASH_TOKEN?.trim();

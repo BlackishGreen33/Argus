@@ -1,5 +1,5 @@
-import { findCandidateComponents, loadSourceData } from "../src/libs/parser";
-import { prisma, prismaPool } from "../src/libs/prisma";
+import { findCandidateComponents, loadSourceData } from "../src/server/data/parser";
+import { prisma, prismaPool } from "../src/server/db/prisma";
 
 function dateValue(value: string | null) {
   if (!value) return null;
@@ -118,11 +118,11 @@ async function main() {
           create: {
             cveId,
             componentPurl: component.purl,
-            matchReason: "CPE vendor/name 前缀匹配，可能关联，需人工确认",
+            matchReason: "triage.matchReasonPrefix",
             confidence: 0.68,
           },
           update: {
-            matchReason: "CPE vendor/name 前缀匹配，可能关联，需人工确认",
+            matchReason: "triage.matchReasonPrefix",
             confidence: 0.68,
           },
         }),

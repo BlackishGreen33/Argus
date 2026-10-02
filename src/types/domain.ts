@@ -1,10 +1,9 @@
-export const TRIAGE_STATUSES = ["PENDING", "CONFIRMED", "DEFERRED", "FALSE_POSITIVE"] as const;
+import { CANDIDATE_STATUSES, SEVERITIES, TRIAGE_STATUSES } from "@/constants/status";
+
+export { CANDIDATE_STATUSES, SEVERITIES, TRIAGE_STATUSES };
 export type TriageStatus = (typeof TRIAGE_STATUSES)[number];
-
-export const CANDIDATE_STATUSES = ["CANDIDATE", "CONFIRMED", "REJECTED"] as const;
 export type CandidateStatus = (typeof CANDIDATE_STATUSES)[number];
-
-export type Severity = "CRITICAL" | "HIGH" | "MEDIUM" | "LOW";
+export type Severity = (typeof SEVERITIES)[number];
 
 export type CpeCandidate = {
   id: string;

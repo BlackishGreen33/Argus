@@ -68,7 +68,8 @@ function splitValues(input: string): Array<string | null> {
   let quoted = false;
   let escaped = false;
 
-  for (const char of input) {
+  for (let index = 0; index < input.length; index += 1) {
+    const char = input[index];
     if (escaped) {
       current += `\\${char}`;
       escaped = false;
@@ -79,6 +80,11 @@ function splitValues(input: string): Array<string | null> {
       continue;
     }
     if (char === "'") {
+      if (quoted && input[index + 1] === "'") {
+        current += "'";
+        index += 1;
+        continue;
+      }
       quoted = !quoted;
       continue;
     }
@@ -104,36 +110,57 @@ function readInsertRows(sql: string): string[][] {
   const rows: string[][] = [];
   const insertPattern = /INSERT\s+INTO[\s\S]*?VALUES\s*\(/gi;
   while (insertPattern.exec(sql)) {
-    const start = insertPattern.lastIndex;
-    let index = start;
-    let quoted = false;
-    let escaped = false;
-    let depth = 1;
+    let start = insertPattern.lastIndex;
+    while (true) {
+      let index = start;
+      let quoted = false;
+      let escaped = false;
+      let depth = 1;
 
-    for (; index < sql.length; index += 1) {
-      const char = sql[index];
-      if (escaped) {
-        escaped = false;
-        continue;
+      for (; index < sql.length; index += 1) {
+        const char = sql[index];
+        if (escaped) {
+          escaped = false;
+          continue;
+        }
+        if (quoted && char === "\\") {
+          escaped = true;
+          continue;
+        }
+        if (quoted && char === "'" && sql[index + 1] === "'") {
+          index += 1;
+          continue;
+        }
+        if (char === "'") {
+          quoted = !quoted;
+          continue;
+        }
+        if (!quoted && char === "(") depth += 1;
+        if (!quoted && char === ")") {
+          depth -= 1;
+          if (depth === 0) break;
+        }
       }
-      if (quoted && char === "\\") {
-        escaped = true;
-        continue;
+
+      if (depth !== 0) {
+        insertPattern.lastIndex = sql.length;
+        break;
       }
-      if (char === "'") {
-        quoted = !quoted;
-        continue;
+      rows.push(splitValues(sql.slice(start, index)) as string[]);
+      let next = index + 1;
+      while (/\s/.test(sql[next] ?? "")) next += 1;
+      if (sql[next] !== ",") {
+        insertPattern.lastIndex = index + 1;
+        break;
       }
-      if (!quoted && char === "(") depth += 1;
-      if (!quoted && char === ")") {
-        depth -= 1;
-        if (depth === 0) break;
+      next += 1;
+      while (/\s/.test(sql[next] ?? "")) next += 1;
+      if (sql[next] !== "(") {
+        insertPattern.lastIndex = index + 1;
+        break;
       }
+      start = next + 1;
     }
-
-    if (depth !== 0) break;
-    rows.push(splitValues(sql.slice(start, index)) as string[]);
-    insertPattern.lastIndex = index + 1;
   }
 
   return rows;

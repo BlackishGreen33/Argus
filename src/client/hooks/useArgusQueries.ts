@@ -1,7 +1,7 @@
-import { useQuery } from "@tanstack/react-query";
+import { keepPreviousData, useQuery } from "@tanstack/react-query";
 
+import { request } from "@/client/http";
 import type { ComponentRecord, CveRecord, OverviewData } from "@/types/domain";
-import { request } from "@/utils/http";
 
 type CveResponse = { data: CveRecord[]; meta?: { total: number; page: number; pageSize: number } };
 type ComponentResponse = { data: ComponentRecord[] };
@@ -33,7 +33,7 @@ export function useArgusQueries(params: {
 }) {
   const cves = useQuery({
     queryKey: argusQueryKeys.cves(params),
-    queryFn: () => {
+    queryFn: ({ signal }) => {
       const search = new URLSearchParams({
         query: params.query,
         page: String(params.page),
@@ -42,16 +42,23 @@ export function useArgusQueries(params: {
       if (params.severity) search.set("severity", params.severity);
       if (params.status) search.set("status", params.status);
       if (params.ecosystem) search.set("ecosystem", params.ecosystem);
-      return request<CveResponse>(`/api/cves?${search.toString()}`);
+      return request<CveResponse>(`/api/cves?${search.toString()}`, { signal });
     },
+    placeholderData: keepPreviousData,
+    staleTime: 10_000,
+    refetchOnWindowFocus: false,
   });
   const components = useQuery({
     queryKey: argusQueryKeys.components(),
     queryFn: () => request<ComponentResponse>("/api/components"),
+    staleTime: 60_000,
+    refetchOnWindowFocus: false,
   });
   const overview = useQuery({
     queryKey: argusQueryKeys.overview(),
     queryFn: () => request<OverviewResponse>("/api/overview"),
+    staleTime: 30_000,
+    refetchOnWindowFocus: false,
   });
   const user = useQuery({
     queryKey: argusQueryKeys.user(),
