@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { loadSourceData, parseComponents, parseCves } from "@/libs/parser";
+import { loadSourceData, parseComponents, parseCves } from "@/server/data/parser";
 
 describe("bundled SQL parser", () => {
   it("loads the assignment dataset with stable record counts", async () => {
@@ -38,5 +38,14 @@ describe("bundled SQL parser", () => {
       description: "description, with comma",
       cvssScoreV3: 7.5,
     });
+  });
+
+  it("supports SQL doubled quotes and multi-row VALUES", () => {
+    const components = parseComponents(
+      "INSERT INTO tmp_comp VALUES ('pkg:a/one','cpe:one','npm','a','one','1',NULL,'vendor''s note',NULL,NULL,NULL,NULL), ('pkg:a/two','cpe:two','npm','a','two','1',NULL,NULL,NULL,NULL,NULL,NULL);",
+    );
+
+    expect(components).toHaveLength(2);
+    expect(components[0]?.description).toBe("vendor's note");
   });
 });
