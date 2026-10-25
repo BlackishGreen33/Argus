@@ -1,16 +1,17 @@
 "use client";
 
-import { CheckIcon, ChevronDownIcon } from "lucide-react";
-import * as React from "react";
 import {
   Button as AriaButton,
   ListBox,
   ListBoxItem,
   Popover,
   Select as AriaSelect,
+  SelectionIndicator,
   SelectStateContext,
   SelectValue as AriaSelectValue,
-} from "react-aria-components";
+} from "@animate-ui/react/primitives/react-aria";
+import { CheckIcon, ChevronDownIcon } from "lucide-react";
+import * as React from "react";
 
 import { cn } from "@/utils/cn";
 
@@ -80,8 +81,6 @@ function SelectContent({ className, children, ...props }: React.ComponentProps<t
       }}
       className={cn(
         "z-50 min-w-[var(--trigger-width)] overflow-hidden rounded-lg border border-[var(--line)] bg-[var(--surface)] p-1 text-[var(--ink)] shadow-[var(--shadow)] outline-none",
-        "[&[data-entering]]:animate-in [&[data-entering]]:fade-in-0 [&[data-entering]]:zoom-in-95",
-        "[&[data-exiting]]:animate-out [&[data-exiting]]:fade-out-0 [&[data-exiting]]:zoom-out-95",
         className,
       )}
       {...props}
@@ -98,7 +97,7 @@ function SelectItem({
   value,
   children,
   ...props
-}: Omit<React.ComponentProps<typeof ListBoxItem>, "children"> & {
+}: Omit<React.ComponentProps<typeof ListBoxItem>, "children" | "value"> & {
   value: string;
   children?: React.ReactNode;
 }) {
@@ -115,12 +114,15 @@ function SelectItem({
       )}
       {...props}
     >
-      {({ isSelected }) => (
+      {() => (
         <>
           <span className="min-w-0 flex-1 truncate">{children}</span>
-          <span className="pointer-events-none absolute right-2 flex size-4 items-center justify-center">
-            {isSelected ? <CheckIcon className="size-4" /> : null}
-          </span>
+          <SelectionIndicator
+            animation="pop"
+            className="pointer-events-none absolute right-2 flex size-4 items-center justify-center"
+          >
+            <CheckIcon className="size-4" />
+          </SelectionIndicator>
         </>
       )}
     </ListBoxItem>

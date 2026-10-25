@@ -9,17 +9,18 @@ const signInAsAdmin = async (page: Page) => {
 test("guest can inspect Triage and use global search", async ({ page }) => {
   await page.goto("/");
   await expect(page.getByRole("heading", { name: "Triage" })).toBeVisible();
-  await expect(page.getByLabel("全局搜索")).toBeVisible();
+  await expect(page.getByRole("textbox", { name: "全局搜索", exact: true })).toBeVisible();
   await expect(page.getByLabel("筛选当前漏洞列表")).toBeVisible();
   await expect(page.getByText("CVE-2026-9999")).toBeVisible();
   await expect(page.locator('[data-slot="checkbox"]')).toHaveCount(0);
-  await expect(page.locator(".cvss").first()).toHaveAttribute("style", /--cvss-progress: 98%/);
+  await expect(page.locator(".cvss").first()).toHaveAttribute("data-percent", "98");
+  await expect(page.locator(".cvss").first()).toHaveText("9.8");
   const firstSeverityRow = page.locator(".argus-table-row").first();
   await expect(firstSeverityRow.locator(".severity-dot")).toHaveCSS("animation-name", "none");
   await firstSeverityRow.hover();
   await expect(firstSeverityRow.locator(".severity-dot")).toHaveCSS("animation-name", "severity-heartbeat");
 
-  await page.getByLabel("全局搜索").fill("express");
+  await page.getByRole("textbox", { name: "全局搜索", exact: true }).fill("express");
   await expect(page.getByRole("dialog", { name: "全局搜索" })).toContainText("Component");
   await page.keyboard.press("Escape");
 
@@ -143,14 +144,10 @@ test("mobile navigation and triage rows keep their context", async ({ page }) =>
   for (const width of [320, 375, 390, 414, 768]) {
     await page.setViewportSize({ width, height: 844 });
     await page.goto("/");
-    const search = page.getByLabel("全局搜索");
-    await expect(search).toHaveCSS("font-size", "16px");
-    await expect
-      .poll(() => search.evaluate((element) => getComputedStyle(element, "::placeholder").fontSize))
-      .toBe("12px");
+    await expect(page.getByRole("button", { name: "打开全局搜索" })).toBeVisible();
     const firstRow = page.locator(".argus-table-row").first();
     await expect(firstRow.locator("td")).toHaveCount(6);
-    await expect(firstRow).toContainText("2026年6月1日");
+    await expect(firstRow).toContainText("2026/06/01");
     await expect(firstRow).toContainText("待处理");
     await expect(firstRow.locator(".cell-title strong")).toHaveCSS("white-space", "normal");
     await expect(firstRow).toHaveCSS("border-radius", "8px");
@@ -159,14 +156,13 @@ test("mobile navigation and triage rows keep their context", async ({ page }) =>
     await expect(page.locator(".mobile-menu")).toHaveCSS("border-width", "0px");
     await expect(page.locator(".mobile-menu")).toHaveCSS("background-color", "rgba(0, 0, 0, 0)");
     await expect(page.locator(".mobile-menu")).toHaveCSS("width", "44px");
-    await expect(page.locator(".sidebar .footer-links")).toBeVisible();
-    await page.locator(".mobile-menu").click();
     await expect(page.locator(".sidebar")).toHaveClass(/collapsed/);
     await expect(page.locator(".sidebar .nav")).toBeHidden();
     await expect(page.locator(".sidebar .wordmark > div")).toBeVisible();
     await expect(page.locator(".mobile-menu")).toHaveAttribute("aria-expanded", "false");
     await expect(page.locator(".mobile-menu")).toHaveCSS("outline-style", "none");
     await page.locator(".mobile-menu").click();
+    await expect(page.locator(".sidebar .footer-links")).toBeVisible();
     await expect(page.locator(".sidebar .nav")).toBeVisible();
     await expect(page.locator(".mobile-menu")).toHaveAttribute("aria-expanded", "true");
     expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(width);
@@ -299,6 +295,7 @@ test("language setting updates copy and survives reload", async ({ page }) => {
 test("component editor keeps fields readable on a narrow viewport", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto("/");
+  await page.getByRole("button", { name: "展开导航" }).click();
   await page.getByRole("button", { name: "Components" }).click();
   await page.getByLabel("登录 Admin").click();
   await signInAsAdmin(page);

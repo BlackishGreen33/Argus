@@ -10,7 +10,7 @@
 | R-004 | 大批量 upsert 超出 Serverless 时间 | 数据量明显超过课程来源或 merge 超时                        | 导入不能在单次请求完成       | preview 与 merge 分离，记录耗时                | 升级为分批 worker，保持 stage schema 和 merge 语义 | 待指定 | 低     | 待填写   |
 | R-005 | Admin 环境变量或权限误配           | Guest 能执行 mutation，或 `ADMIN_EMAIL` 与实际管理员不一致 | 未授权修改、删除或导入       | API 服务端使用 `resolveUser`，发布前跑权限矩阵 | 关闭部署、修正 Auth 和环境变量，重新回读           | 待指定 | 监控中 | 待填写   |
 | R-006 | CPE 启发式误报                     | 候选关系被误认为事实或直接触发修复                         | 错误关联组件                 | UI 明确标记候选，默认需要 Admin 确认           | Admin REJECT；禁止将候选用于自动修复               | 待指定 | 监控中 | 待填写   |
-| R-007 | UI 来源或依赖边界漂移              | 新增完整 UI 库、token 重复或授权来源不清                   | CSS 冲突、维护成本或授权风险 | 使用本地组件和语义 token，保留来源链接         | 删除未使用依赖，更新 decisions 和 README           | 待指定 | 监控中 | 待填写   |
+| R-007 | UI 来源或依赖边界漂移              | 官方 primitive 升级、token 重复或授权来源不清 | CSS 冲突、维护成本或授权风险 | Animate UI 升级时同步核对 Motion peer 并跑 UI E2E；保留第三方声明 | 刷新已回退原 Button；Animate UI 保留 MIT 加 Commons Clause 约束，发布用途变化时复核；更新 decisions 和 README | 待指定 | 监控中 | 下次发布前 |
 | R-008 | 文档与代码契约漂移                 | 目录、API、命令、权限或 UI 行为改变但文档未同步            | 代理误读、错误操作或验收失真 | 按 `AGENTS.md` 每次 diff 执行文件影响判断      | 同一批变更补齐文档，记录未更新理由                 | 维护者 | 监控中 | 每次变更 |
 
 ## 登记规则

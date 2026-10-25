@@ -37,7 +37,7 @@ Argus 把来源字段、评分、影响范围和组件关系放进同一条审�
 | 模块       | 能力                                                                                                    |
 | ---------- | ------------------------------------------------------------------------------------------------------- |
 | Triage     | 按 CVE ID、标题、描述、Component、PURL 搜索；按严重度、生态系统、状态筛选                               |
-| 全局搜索   | 搜索 CVE、Component、PURL；支持 `Cmd/Ctrl + K` 命令入口                                                 |
+| 全局搜索   | 搜索 CVE、Component、PURL；桌面 `Cmd/Ctrl + K`，手机顶栏按钮打开同一命令入口                             |
 | 详情抽屉   | 展示 Overview、Impact、History；Admin 可快速修改 triage 状态                                            |
 | CVE        | 编辑来源映射字段；Admin 确认后硬删除并写入 AuditEvent；不提供人工新增                                   |
 | Components | PURL、类型、名称、版本、供应商、CPE、许可证、仓库链接的完整 CRUD                                        |
@@ -53,7 +53,7 @@ Argus 把来源字段、评分、影响范围和组件关系放进同一条审�
 | Runtime  | Node.js 24.x、pnpm 12.6.0                         | 版本来自 `package.json`                                   |
 | Web      | Next.js 16 App Router、Turbopack、Tailwind CSS v4 | 使用官方 Next 构建链                                      |
 | Client   | Axios、TanStack Query、Jotai、Motion              | 请求、远端数据生命周期、跨页 UI 状态和动效各自负责        |
-| UI       | 本地 UI 组件、Radix、React Aria                   | 外部来源组件的授权说明见文末；不把 Rare UI 当作 npm 依赖  |
+| UI       | 本地 UI 组件、Animate UI、Radix、React Aria       | 动画 primitive 直接复用官方套件；registry 组件来源与授权见文末 |
 | API      | Hono、Zod、OpenAPI JSON                           | Next adapter 位于 `src/app/api/[[...route]]/route.ts`     |
 | Database | Supabase Postgres、Prisma 7.10                    | migration、seed、transaction 和 upsert                    |
 | Auth     | Supabase Auth、`DEMO_MODE`                        | Email／Password；Google 和 GitHub 按 Provider 配置显示    |
@@ -301,3 +301,8 @@ Argus/
 
 - `src/components/ui/delete-button.tsx` 和 `src/components/ui/notification-bell.tsx` 是仓库中的自有 UI 文件，保留其来源与授权链接；Rare UI 不作为运行时依赖安装。
 - [Rare UI](https://www.rareui.com/)：Delete Button 与 Notification Bell 的来源／授权参考。
+- Tabs、Sheet 和 Select 直接使用 `@animate-ui/react` 2.2.1 的 Radix／React Aria primitive，配合 Motion 14；不自行重写焦点、键盘和动画底层。
+- [Magic UI Number Ticker](https://magicui.design/docs/components/number-ticker) 与 [Animated Circular Progress Bar](https://magicui.design/docs/components/animated-circular-progress-bar)：官方 registry 源码的本地版本，保留 locale、真实 CVSS 值与 reduced motion。
+- [Cult UI Copy Button](https://www.cult-ui.com/docs/components/copy-button)：官方源码的本地版本，调整产品文案、失败反馈与 Dialog 内的复制焦点。
+- 导入刷新复用项目原有 Button，加载、成功和失败来自真实 job，保留防重复提交与读屏反馈；不再包含授权未明确的 Aceternity registry 改造文件。
+- Magic UI／Cult UI 的 MIT 版权及许可全文、Animate UI 的 MIT 加 Commons Clause 说明保留在 [第三方 UI 声明](./THIRD_PARTY_NOTICES.md)。

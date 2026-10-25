@@ -3,6 +3,7 @@
 import { AlertTriangle, Check, FileSearch, FilterX, Lock, Search, X } from "lucide-react";
 import type React from "react";
 
+import { AnimatedCircularProgressBar } from "@/components/ui/animated-circular-progress-bar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -14,6 +15,7 @@ import {
   ContextMenuSeparator,
   ContextMenuTrigger,
 } from "@/components/ui/context-menu";
+import { copyToClipboardWithMeta } from "@/components/ui/copy-button";
 import { Input } from "@/components/ui/input";
 import {
   Pagination,
@@ -31,12 +33,6 @@ import { useI18n } from "@/i18n";
 import type { CveRecord, TriageStatus } from "@/types/domain";
 import { formatDate, statusClass } from "@/utils/format";
 import { severityLabelKeys, statusLabelKeys } from "@/utils/labels";
-
-const cvssProgress = (score: number | null | undefined) => {
-  const numericScore = Number(score);
-  const normalizedScore = Number.isFinite(numericScore) ? Math.min(Math.max(numericScore, 0), CVSS_MAX_SCORE) : 0;
-  return `${Math.round((normalizedScore / CVSS_MAX_SCORE) * 100)}%`;
-};
 
 interface TriagePageProps {
   cves: CveRecord[];
@@ -318,18 +314,17 @@ export const TriagePage: React.FC<TriagePageProps> = ({
                         </div>
                       </TableCell>
                       <TableCell>
-                        <span
+                        <AnimatedCircularProgressBar
                           className="cvss"
-                          style={
-                            {
-                              "--cvss-progress": cvssProgress(cve.cvssScoreV3 ?? cve.cvssScoreV4),
-                            } as React.CSSProperties
-                          }
-                        >
-                          <span className="cvss-value">
-                            {cve.cvssScoreV3 ?? cve.cvssScoreV4 ?? t("triage.noValue")}
-                          </span>
-                        </span>
+                          max={CVSS_MAX_SCORE}
+                          value={cve.cvssScoreV3 ?? cve.cvssScoreV4}
+                          gaugePrimaryColor="var(--cvss-color)"
+                          gaugeSecondaryColor="var(--ui-cvss-track)"
+                          emptyValue={t("triage.noValue")}
+                          aria-label={t("triage.cvssValue", {
+                            value: cve.cvssScoreV3 ?? cve.cvssScoreV4 ?? t("triage.noValue"),
+                          })}
+                        />
                       </TableCell>
                       <TableCell className="cell-muted">
                         {formatDate(cve.sourceUpdateDate, locale, t("triage.noValue"))}
@@ -347,14 +342,9 @@ export const TriagePage: React.FC<TriagePageProps> = ({
                     <ContextMenuItem onSelect={() => openCve(cve)}>{t("action.showDetails")}</ContextMenuItem>
                     <ContextMenuItem
                       onSelect={() => {
-                        if (!navigator.clipboard) {
-                          onToast(t("triage.copyUnsupported"));
-                          return;
-                        }
-                        void navigator.clipboard
-                          .writeText(cve.cveId)
-                          .then(() => onToast(t("action.copySuccess")))
-                          .catch(() => onToast(t("action.copyFailure")));
+                        void copyToClipboardWithMeta(cve.cveId).then((copied) =>
+                          onToast(t(copied ? "action.copySuccess" : "action.copyFailure")),
+                        );
                       }}
                     >
                       {t("triage.copyCve")}

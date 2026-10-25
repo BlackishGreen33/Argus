@@ -22,7 +22,7 @@ const WALL_TOP_OPEN = 13.5;
 const WALL_BASE = 20;
 
 const TILE = 48;
-const PANEL = 84;
+const PANEL = 104;
 const HOLD = { deleted: 1400, kept: 600 };
 
 const EASE = [0.32, 0.72, 0, 1] as const;
@@ -52,7 +52,7 @@ const ACCENT = "var(--accent)";
 
 const LIFT = "shadow-[var(--ui-shadow-soft)]";
 
-const CIRCLE = `grid h-7 w-7 place-items-center rounded-full transition-colors duration-200 hover:bg-[var(--app-surface-alt)] ${FOCUS} ${SURFACE} ${LIFT}`;
+const CIRCLE = `grid h-[44px] w-[44px] place-items-center rounded-full transition-colors duration-200 hover:bg-[var(--app-surface-alt)] ${FOCUS} ${SURFACE} ${LIFT}`;
 
 const ICON = {
   viewBox: "0 0 24 24",

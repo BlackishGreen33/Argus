@@ -72,7 +72,6 @@ export const ComponentEditor: React.FC<ComponentEditorProps> = ({
           <DialogDescription className="sr-only">{t("components.editorDescription")}</DialogDescription>
           <div className="editor-header">
             <div>
-              <div className="eyebrow">{t("page.components.title")}</div>
               <h2>{t(component ? "components.editorTitleEdit" : "components.editorTitleNew")}</h2>
               <p>{t("components.editorSubtitle")}</p>
             </div>
@@ -97,7 +96,7 @@ export const ComponentEditor: React.FC<ComponentEditorProps> = ({
                 autoComplete="off"
                 spellCheck={false}
                 value={form.purl}
-                disabled={Boolean(component)}
+                readOnly={Boolean(component)}
                 onChange={(event) => setForm({ ...form, purl: event.target.value })}
               />
             </div>
@@ -186,7 +185,7 @@ export const ComponentEditor: React.FC<ComponentEditorProps> = ({
             </div>
             <div className="editor-footer">
               {component && (
-                <Button variant="destructive" onClick={() => setConfirmDeleteOpen(true)}>
+                <Button className="editor-delete" variant="destructive" onClick={() => setConfirmDeleteOpen(true)}>
                   <Trash2 size={15} /> {t("action.deleteComponent")}
                 </Button>
               )}

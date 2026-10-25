@@ -133,7 +133,7 @@ export const CveEditor: React.FC<CveEditorProps> = ({ cve, onClose, onSaved }) =
               name="source-identification"
               autoComplete="off"
               value={`${cve.sourceName ?? t("triage.sourceUnknown")} ${t("triage.historySeparator")} ${cve.sourceId}`}
-              disabled
+              readOnly
             />
           </div>
           <div className="field full">
@@ -176,7 +176,7 @@ export const CveEditor: React.FC<CveEditorProps> = ({ cve, onClose, onSaved }) =
               name="source-link"
               autoComplete="off"
               value={cve.sourceLink ?? t("triage.noValue")}
-              disabled
+              readOnly
             />
           </div>
           <div className="editor-footer">

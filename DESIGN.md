@@ -12,7 +12,7 @@ Argus 是 Operate 型安全审查工作台。界面优先帮助使用者读证�
 - 浏览器请求统一经过 `src/client/http.ts`；TanStack Query 管理远端数据，Jotai 管理跨页 UI 状态，短生命 local state 留在组件内部。
 - 文案由 `src/i18n/index.tsx` 和 `src/i18n/server.ts` 提供；业务 TS／TSX 不直接写可见 UI 文案。
 - 主题 token 的机器来源是 `src/app/globals.scss`，三种主题由 `src/constants/theme.ts` 定义。本文说明语义，不复制一份可能漂移的 CSS。
-- UI 基础组件是仓库中的本地文件，使用 Radix、React Aria 和已有依赖；Rare UI 不是 npm 运行时依赖，来源与授权说明保留在 README。
+- UI 基础组件保留本地样式入口；Tabs、Sheet、Select 直接使用 Animate UI 的 Radix／React Aria primitive，Motion 版本遵循其 peer 要求。Magic UI、Cult UI 以官方 registry 源码引入，仅调整产品样式、文案与必要行为；来源和授权说明见 README 与第三方声明。
 
 ## 2. 设计原则
 
@@ -36,7 +36,7 @@ Argus 是 Operate 型安全审查工作台。界面优先帮助使用者读证�
 | 严重度     | dot 只在列 hover 时做一次 transform heartbeat；CVSS 环显示比例                                                | 动效只提示交互，数值仍是主要证据 |
 | Dialog     | 遮罩点击和 Esc 关闭；关闭后焦点回到来源元素；登录 Dialog 只保留一个标题和主动作                               | 减少重复控件并保持焦点路径       |
 | 权限       | 登出或退回 Guest 时清空 CVE 批量选择；Guest 不渲染选择框                                                      | 不把 Admin 暂存动作带入只读状态  |
-| 移动侧栏   | 展开时显示导航、设置、帮助和 GitHub；收起时只保留品牌和展开控制                                               | 收展不隐藏必要入口               |
+| 移动侧栏   | 手机首次加载默认收起；展开时显示导航、设置、帮助和 GitHub；收起时保留品牌和展开控制                             | 收展不隐藏必要入口               |
 | 移动列表   | 保留严重度、CVE、标题、组件、CVSS、日期和状态；标题最多两行                                                   | 小屏仍能完成分流判断             |
 | 表单       | 登录密码可显示／隐藏；字段有清晰 label、错误、保存中和成功状态                                                | 让数据状态和下一步动作可见       |
 | 破坏性操作 | Component 和 CVE 删除先确认，取消后编辑器与数据不变                                                           | 避免误触丢失数据                 |
@@ -59,11 +59,11 @@ Argus 是 Operate 型安全审查工作台。界面优先帮助使用者读证�
 | 用途       | 规则                                                                  |
 | ---------- | --------------------------------------------------------------------- |
 | 界面与数据 | Geist，中文回退系统黑体、Noto Sans SC 或 PingFang SC；默认 14px／1.45 |
-| 展示标题   | 单一 sans 字体；标题使用较大字级和紧凑行高，但不能挤压数据            |
-| 辅助文字   | 11–13px／1.45，只承载次要信息，不能成为唯一操作说明                   |
+| 展示标题   | 桌面页名与指标 32px、区段／Dialog 20px；手机页名 28px，行高至少 1.15 |
+| 辅助文字   | 12px／1.45；账号、CPE、日期与表头等可读数据均不可低于此值              |
 | 键盘提示   | 使用 `kbd` token，保持单行                                            |
 
-不要用 10px 以下文字承载可操作信息，不用衬线长段落抢过 CVE 证据，不用全大写中文。
+正文、数据和普通控制以 14px 为主，同页通常不超过四种字级；手机输入可用 16px 避免 iOS 自动缩放。不要用 12px 以下文字承载信息，不用衬线长段落抢过 CVE 证据，不用全大写中文。
 
 ### 色彩语义
 
@@ -81,7 +81,11 @@ Argus 是 Operate 型安全审查工作台。界面优先帮助使用者读证�
 - 基准间距为 4px；优先使用 Tailwind spacing token，跨组件规则才写入 SCSS。
 - `space-1` 到 `space-9` 依次服务于图标间距、控制组、label、卡片、区段、页面内距和清除控制保留区。
 - 桌面表格列高由当前实现保持一致；移动端卡片保留足够内容高度，不能依赖水平滚动。
-- 小控制和 badge 使用小圆角；button、input、select 使用中等圆角；panel、sheet、dialog 使用较大圆角。
+- 圆角阶梯为 badge 6px、control 8px、surface／menu 12px、Dialog／Sheet 16px；状态标签可用 pill，avatar 可用圆形。
+- 一般 Button／Input／Select 桌面高 40px，手机命中区至少 44×44px；密集次级按钮桌面 32px，手机仍为 44px。图标 16px、图文 gap 8px，同一工具列控制高差不超过 1px。
+- Button 的稳定 `argus-button` class 承担尺寸与 variant，不能依赖会被 Radix asChild／Trigger 改写的 `data-slot`；所有 slot 组合保持同一尺寸规则。
+- 菜单外圆角 12px、内选项 8px、容器 padding 4px。表单单一层拥有内距：桌面 24px、手机 16px，标头、主内容与页脚共用内缘；label gap 8px、field gap 16px。
+- 身份区最小高 48px、avatar 32px、gap 8px、padding 6／8／6／6px、radius 16px；身份仅展示，独立登出按钮才执行登出，长 email 可截断并保留完整 title。
 - Portal 内容必须有不透明背景；不要用多层阴影制造浮雕效果。
 
 ## 6. 组件与状态契约
@@ -93,18 +97,23 @@ Argus 是 Operate 型安全审查工作台。界面优先帮助使用者读证�
 - 筛选触发器写“严重度”，未选择写“全部严重度”，选项只写“严重／高／中／低”。
 - 排序是独立动作，使用清晰箭头和 `aria-sort`，不藏在筛选菜单里。
 - 只有存在条件时才启用清除筛选；清除不会额外改变输入框宽度。
+- 刷新可采用 icon-only，但必须保留 tooltip、aria-label、loading 和禁用反馈；类型筛选保留可见选值与启用样式。
 
 ### 表格、列表与 ContextMenu
 
 - 桌面使用本地 Table 组件，表头、列宽和列高稳定；长文字使用 ellipsis 和 `title`。
+- 日期使用 locale-aware 数字年／月／日并完整显示，不以 tooltip 代替。手机 Component 名称与版本优先，PURL／CPE 作次行并可选取完整文本。
 - 默认每页 10 条，footer 数量必须等于当前渲染数量，骨架不能多生成行。
 - CVE 行没有独立操作栏；桌面右键、触控长按打开 ContextMenu，行点击打开详情。
 - 移动端改为卡片或列表，不要求横向滚动才能看到 CVE ID、标题、组件、严重度、CVSS、日期和状态。
 - checkbox 只负责批量选择；选中行提供 `aria-selected` 或等价状态。
+- CVSS 环中心显示真实的 0–10 分数，不显示百分比；缺值与零分分别显示，环比例限制在有效范围内。详情使用同一官方环形组件的大尺寸版本。
+- 详情 CVE ID 旁提供 Cult UI Copy Button；成功显示勾号并通过读屏播报，失败显示 toast，保留右键复制入口和手动选择文本的路径。
 
 ### Sheet、Dialog 与 Command
 
-- CVE 详情使用右侧 Sheet；桌面与移动端宽度以当前 CSS 和浏览器验证为准。
+- CVE 详情使用 Animate UI 右侧 Sheet，桌面目标宽度 430px，窄屏不超过视口；手机全宽。设置、通知和帮助共用同一动画 primitive。
+- 详情 Tabs 使用 Animate UI 的滑动选中背景与内容过渡，Overview／Impact／History 均保留 Radix tab／tabpanel 关联、方向键与焦点语义，不以手动条件渲染替代 tabpanel。
 - Sheet、Dialog 必须有 Title 和 Description；视觉隐藏也要保留语义。
 - 打开、关闭和遮罩动画支持 `prefers-reduced-motion`；focus trap、Esc 和关闭后焦点回收必须有效。
 - 登录 Dialog 只展示一个“登录”标题，密码提供显示／隐藏控制；未配置的社交登录整段不渲染。
@@ -113,6 +122,8 @@ Argus 是 Operate 型安全审查工作台。界面优先帮助使用者读证�
 
 ### 表单、权限与反馈
 
+- 不可变 PURL 和来源字段使用可选择的 readonly，不用 disabled 弱化阅读；锁头与 label 同行，服务端不可变规则不变。
+- 编辑器桌面删除靠左、取消和保存靠右；手机删除为独立次级区，常用动作成组且只有一个实色主动作。键盘顺序与视觉顺序一致，保留既有删除确认机制。
 - 每个字段有可见 label 或 `aria-label`；错误靠近字段，使用 `aria-invalid`。
 - Guest、Admin 和身份验证中是三种不同状态；身份查询未完成时显示“验证中”，不能先显示 Guest 限制再跳成 Admin。
 - `/api/auth/me` 的服务端结果是权限事实来源；localStorage 不能作为授权依据。
@@ -125,7 +136,8 @@ Argus 是 Operate 型安全审查工作台。界面优先帮助使用者读证�
 
 - 桌面：侧栏、主内容和右侧详情保持层级；表格列对齐，首屏能看到导航和主要操作。
 - 平板：侧栏可以折叠；图标有 tooltip，文字不裁切，Sheet 不遮住关闭入口。
-- 手机：侧栏转为顶部品牌列，列表卡片化，Sheet 全宽；首屏同时能找到导航和搜索。
+- 手机（≤840px）：侧栏转为精简顶部品牌列，初始收起但可展开；全局搜索使用与身份同列的命令按钮，仍打开现有 Command。列表搜索保留完整输入和独立 state，不显示桌面键盘提示与重述副标。
+- 390×844、Admin 且导航收起的普通状态下，Triage 首笔起点目标不超过 360px，并容纳至少两笔完整卡片。
 - 极窄屏：筛选控件换行，操作按钮满宽或网格化；中英混排不重叠，触控目标至少 44px。
 - 侧栏控制文案随状态变化，展开与折叠不能只靠图标猜测。
 
@@ -136,6 +148,8 @@ Argus 是 Operate 型安全审查工作台。界面优先帮助使用者读证�
 - 严重度 dot 只在列 hover 时做 transform heartbeat，不动画 box-shadow、filter 或多层光晕。
 - `prefers-reduced-motion: reduce` 时取消位移和非必要动画，保留状态变化与可访问性信息。
 - 动效只表达出现、消失、状态改变或等待，不能遮盖加载延迟。
+- Overview 数字使用 Magic UI Number Ticker；首次渲染显示最终真实值，后续数值变化才过渡，格式遵循当前 locale，读屏始终获取最终值。
+- 刷新与重新预览复用原有 Button 和 Lucide 状态图标；加载、成功、失败取自真实导入 job，而非仅依据请求 resolve。Guest 点击只打开登录，处理中禁用重复提交，FAILED 不得显示成功。
 
 ## 9. 可访问性与输入
 
@@ -143,7 +157,7 @@ Argus 是 Operate 型安全审查工作台。界面优先帮助使用者读证�
 - Focus 必须可见，不使用与主题冲突的橙色双重框。
 - Dialog、Sheet 和 ContextMenu 打开时焦点进入内容，关闭后回到触发元素或原列表行。
 - 对比度达到 WCAG 2.2 AA；状态同时提供文字、形状或图标。
-- 触控目标至少 44×44px；长按操作必须有可见 ContextMenu，不能只依赖 hover。
+- 手机 Copy、Sheet close、Tabs、状态选项和删除确认等触控目标至少 44×44px，相邻命中区不得重叠；长按操作必须有可见 ContextMenu，不能只依赖 hover。
 
 ## 10. UI 走查路线
 
@@ -178,7 +192,6 @@ Argus 是 Operate 型安全审查工作台。界面优先帮助使用者读证�
 
 | 项目               | 当前文档表述                                  | 机器来源                                              | 处理方式                             |
 | ------------------ | --------------------------------------------- | ----------------------------------------------------- | ------------------------------------ |
-| 标题字级           | 旧表述为 H1 42–58px                           | `src/app/globals.scss`                                | 以 CSS 与浏览器结果校准              |
 | Sheet／Dialog 位移 | 旧表述为 12px、0.98→1                         | `src/app/globals.scss`、`src/components/ui/sheet.tsx` | 以实际动效检查后更新                 |
 | 响应式断点         | 文档与 CSS 可能使用不同断点                   | `src/app/globals.scss`                                | 以实际布局和浏览器路线为准           |
 | token 清单         | 文档可能漏掉 `--app-surface-alt` 等实际 token | `src/app/globals.scss`                                | 逐项核对后补齐                       |

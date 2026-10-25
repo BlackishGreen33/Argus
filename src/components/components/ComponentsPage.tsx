@@ -21,6 +21,7 @@ import {
   PaginationPrevious,
 } from "@/components/ui/pagination";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { COMPONENT_PAGE_SIZE } from "@/constants/app";
 import { useI18n } from "@/i18n";
 import type { ComponentRecord } from "@/types/domain";
@@ -80,7 +81,7 @@ export const ComponentsPage: React.FC<ComponentsPageProps> = ({
           <Plus size={16} /> {authPending ? t("components.verifyLogin") : t("components.create")}
         </Button>
       </div>
-      <div className="filter-row">
+      <div className="filter-row component-filters">
         <div className="local-search">
           <Search size={17} aria-hidden="true" />
           <Input
@@ -109,13 +110,29 @@ export const ComponentsPage: React.FC<ComponentsPageProps> = ({
             </button>
           )}
         </div>
-        <Button variant="outline" onClick={onRefresh}>
-          <RotateCw size={15} /> {t("action.refresh")}
-        </Button>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button
+              variant="outline"
+              size="icon"
+              onClick={onRefresh}
+              disabled={loading}
+              aria-busy={loading}
+              aria-label={t("action.refresh")}
+            >
+              <RotateCw size={16} className={loading ? "spin" : undefined} aria-hidden="true" />
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent>{t("action.refresh")}</TooltipContent>
+        </Tooltip>
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button variant="outline" aria-label={t("components.filterType")}>
-              <Filter size={15} />{" "}
+            <Button
+              variant="outline"
+              aria-label={typeFilter ? t("components.typeFilter", { type: typeFilter }) : t("components.filterType")}
+              data-filter-active={Boolean(typeFilter)}
+            >
+              <Filter size={16} aria-hidden="true" />{" "}
               {typeFilter ? t("components.typeFilter", { type: typeFilter }) : t("components.type")}
             </Button>
           </DropdownMenuTrigger>
@@ -196,13 +213,16 @@ export const ComponentsPage: React.FC<ComponentsPageProps> = ({
                     className="component-name-cell truncate"
                     title={`${component.vendor ? `${component.vendor} / ` : ""}${component.name}`}
                   >
-                    <span translate="no">
+                    <span translate="no" className="component-name">
                       {component.vendor ? `${component.vendor} / ` : ""}
                       {component.name}
                     </span>
+                    <span className="component-mobile-version" translate="no">
+                      {component.version}
+                    </span>
                   </TableCell>
                   <TableCell>{component.version}</TableCell>
-                  <TableCell className="cell-muted">
+                  <TableCell className="cell-muted component-date-cell">
                     {formatDate(component.recordTime, locale, t("triage.noValue"))}
                   </TableCell>
                   <TableCell className="w-12" onClick={(event) => event.stopPropagation()}>

@@ -37,7 +37,9 @@ import { PageTransition } from "@/components/PageTransition";
 import { CveDrawer } from "@/components/triage/CveDrawer";
 import { CveEditor } from "@/components/triage/CveEditor";
 import { TriagePage } from "@/components/triage/TriagePage";
+import { Button } from "@/components/ui/button";
 import { NotificationBell } from "@/components/ui/notification-bell";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { STORAGE_KEYS } from "@/constants/app";
 import { useI18n } from "@/i18n";
 import type { CveRecord, TriageStatus } from "@/types/domain";
@@ -113,7 +115,7 @@ export const ArgusApp: React.FC<ArgusAppProps> = () => {
     if (savedTheme === "terracotta" || savedTheme === "olive" || savedTheme === "graphite") {
       ui.setThemeAccent(savedTheme);
     }
-    if (savedSidebar === "true") ui.setSidebarCollapsed(true);
+    ui.setSidebarCollapsed(savedSidebar === "true" || window.matchMedia("(max-width: 840px)").matches);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ui.setSidebarCollapsed, ui.setThemeAccent]);
 
@@ -385,6 +387,14 @@ export const ArgusApp: React.FC<ArgusAppProps> = () => {
 
       <main id="main-content" className="main" tabIndex={-1}>
         <header className="topbar">
+          <Button
+            className="mobile-global-search"
+            variant="outline"
+            onClick={() => ui.setCommandOpen(true)}
+            aria-label={t("search.global.open")}
+          >
+            <Search size={16} aria-hidden="true" /> {t("search.global.label")}
+          </Button>
           <div className="global-search" role="search">
             <Search size={17} aria-hidden="true" />
             <input
@@ -456,19 +466,27 @@ export const ArgusApp: React.FC<ArgusAppProps> = () => {
                 </span>
               </button>
             ) : effectiveIsAdmin ? (
-              <button
-                className="profile-chip"
-                onClick={logout}
-                disabled={ui.authActionPending}
-                aria-label={t("auth.admin.logout")}
-              >
+              <div className="profile-chip">
                 <span className="avatar">{t("brand.adminInitials")}</span>
                 <span className="profile-copy">
                   <strong>{t("auth.admin.title")}</strong>
-                  <span>{effectiveEmail}</span>
+                  <span title={effectiveEmail}>{effectiveEmail}</span>
                 </span>
-                <LogOut size={15} />
-              </button>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={logout}
+                      disabled={ui.authActionPending}
+                      aria-label={t("auth.admin.logout")}
+                    >
+                      <LogOut size={16} aria-hidden="true" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>{t("auth.admin.logout")}</TooltipContent>
+                </Tooltip>
+              </div>
             ) : (
               <button className="profile-chip" onClick={() => ui.setLoginOpen(true)} aria-label={t("auth.guest.login")}>
                 <span className="avatar">
@@ -586,8 +604,9 @@ export const ArgusApp: React.FC<ArgusAppProps> = () => {
         </div>
       </main>
 
-      {ui.drawerOpen && ui.selected && (
+      {ui.selected && (
         <CveDrawer
+          open={ui.drawerOpen}
           cve={ui.selected}
           tab={ui.drawerTab}
           setTab={ui.setDrawerTab}

@@ -42,6 +42,9 @@
 
 - [ ] 按 [DESIGN.md](../DESIGN.md) 的受影响路线完成至少一个桌面和一个手机视口走查
 - [ ] 检查 console、网络失败、loading／empty／error、键盘、焦点、reduced motion 和无障碍标签
+- [ ] 运行 `e2e/ui-replacements.spec.ts`，核对 CVSS 原值、复制失败、真实导入状态、手机 Sheet 和键盘 Tabs／Select
+- [ ] UI 官方来源、依赖 peer 与第三方许可已核对；Magic／Cult 保留 MIT 声明，Animate UI 按 MIT 加 Commons Clause 复核用途；不含 Aceternity registry 源码
+- [ ] 运行 `e2e/ui-polish.spec.ts`，核对控制同高、手机密度、44px 触控、唯读字段与三主题对比
 - [ ] 测试证据已写入 [测试矩阵](./test-matrix.md)，包含日期、commit、环境和链接
 - [ ] 本次代码、配置、测试和目录变更已按 [AGENTS.md](../AGENTS.md) 判断文档影响
 - [ ] README、DESIGN、plan、decisions、risk 和 API 摘要没有重复或过时的当前状态

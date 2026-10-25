@@ -1,10 +1,11 @@
 "use client";
 
-import { Activity, Check, RotateCw } from "lucide-react";
+import { Activity, Check, LoaderCircle, RefreshCw, TriangleAlert } from "lucide-react";
 import React, { useEffect, useRef, useState } from "react";
 
 import { request } from "@/client/http";
 import { Button } from "@/components/ui/button";
+import { NumberTicker } from "@/components/ui/number-ticker";
 import { useI18n } from "@/i18n";
 import type { ImportJob, OverviewData } from "@/types/domain";
 import { importStatusLabelKeys, severityLabelKeys } from "@/utils/labels";
@@ -30,44 +31,62 @@ export const OverviewPage: React.FC<OverviewPageProps> = ({
 }) => {
   const { t } = useI18n();
   const [job, setJob] = useState<ImportJob | null>(data?.latestImport ?? null);
-  const [working, setWorking] = useState(false);
+  const [refreshState, setRefreshState] = useState<"idle" | "loading" | "success" | "error">("idle");
+  const working = refreshState === "loading";
+  const busyRef = useRef(false);
+  const activeRef = useRef(true);
   const timerRef = useRef<number | null>(null);
   useEffect(() => {
     setJob(data?.latestImport ?? null);
   }, [data?.latestImport]);
-  useEffect(
-    () => () => {
-      if (timerRef.current !== null) window.clearInterval(timerRef.current);
-    },
-    [],
-  );
-  const startImport = async () => {
-    if (authPending) return;
-    if (!isAdmin) return onLogin();
-    setWorking(true);
-    try {
-      const response = await request<{ data: ImportJob }>("/api/imports", { method: "POST" });
-      setJob(response.data);
-      onToast(t("overview.refreshQueued"));
-      timerRef.current = window.setInterval(async () => {
+  useEffect(() => {
+    activeRef.current = true;
+    return () => {
+      activeRef.current = false;
+      if (timerRef.current !== null) window.clearTimeout(timerRef.current);
+    };
+  }, []);
+  const watchJob = async (next: ImportJob) => {
+    if (!activeRef.current) return;
+    setJob(next);
+    if (["PREVIEW_READY", "FAILED", "SUCCEEDED"].includes(next.status)) {
+      if (timerRef.current !== null) window.clearTimeout(timerRef.current);
+      timerRef.current = null;
+      busyRef.current = false;
+      setRefreshState(next.status === "FAILED" ? "error" : "success");
+      if (next.status === "FAILED") onToast(next.errorMessage ?? t("overview.importFailed"));
+      await onRefresh();
+    } else if (timerRef.current === null) {
+      timerRef.current = window.setTimeout(async () => {
+        timerRef.current = null;
         try {
-          const next = await request<{ data: ImportJob }>(`/api/imports/${response.data.id}`);
-          setJob(next.data);
-          if (["PREVIEW_READY", "FAILED", "SUCCEEDED"].includes(next.data.status)) {
-            if (timerRef.current !== null) window.clearInterval(timerRef.current);
-            timerRef.current = null;
-            setWorking(false);
-            await onRefresh();
-          }
+          const response = await request<{ data: ImportJob }>(`/api/imports/${next.id}`);
+          await watchJob(response.data);
         } catch (error) {
-          if (timerRef.current !== null) window.clearInterval(timerRef.current);
+          if (!activeRef.current) return;
+          if (timerRef.current !== null) window.clearTimeout(timerRef.current);
           timerRef.current = null;
-          setWorking(false);
+          busyRef.current = false;
+          setRefreshState("error");
           onToast(error instanceof Error ? error.message : t("overview.refreshStatusFailed"));
         }
       }, 1000);
+    }
+  };
+  const startImport = async () => {
+    if (authPending || busyRef.current) return;
+    if (!isAdmin) return onLogin();
+    busyRef.current = true;
+    setRefreshState("loading");
+    try {
+      const response = await request<{ data: ImportJob }>("/api/imports", { method: "POST" });
+      if (!activeRef.current) return;
+      if (["QUEUED", "RUNNING"].includes(response.data.status)) onToast(t("overview.refreshQueued"));
+      await watchJob(response.data);
     } catch (error) {
-      setWorking(false);
+      if (!activeRef.current) return;
+      busyRef.current = false;
+      setRefreshState("error");
       onToast(error instanceof Error ? error.message : t("overview.importStartFailed"));
     }
   };
@@ -84,18 +103,38 @@ export const OverviewPage: React.FC<OverviewPageProps> = ({
     }
   };
   const retry = async () => {
-    if (authPending) return;
+    if (authPending || busyRef.current) return;
     if (!job || !isAdmin) return onLogin();
+    busyRef.current = true;
+    setRefreshState("loading");
     try {
       const response = await request<{ data: ImportJob }>(`/api/imports/${job.id}/retry`, { method: "POST" });
-      setJob(response.data);
-      onToast(t("overview.requeued"));
+      await watchJob(response.data);
     } catch (error) {
+      if (!activeRef.current) return;
+      busyRef.current = false;
+      setRefreshState("error");
       onToast(error instanceof Error ? error.message : t("overview.retryFailed"));
     }
   };
   const severityMax = Math.max(...(data?.severity.map((item) => item.count) ?? [1]), 1);
   const ecosystemMax = Math.max(...(data?.ecosystems.map((item) => item.count) ?? [1]), 1);
+  const refreshFeedback = authPending
+    ? t("components.verifyLogin")
+    : working
+      ? t("overview.refreshing")
+      : refreshState === "success"
+        ? t(job?.status === "SUCCEEDED" ? "status.succeeded" : "overview.previewReady")
+        : refreshState === "error"
+          ? t("overview.refreshFailed")
+          : null;
+  const RefreshIcon = working
+    ? LoaderCircle
+    : refreshState === "success"
+      ? Check
+      : refreshState === "error"
+        ? TriangleAlert
+        : RefreshCw;
   return (
     <>
       <div className="page-heading">
@@ -103,11 +142,14 @@ export const OverviewPage: React.FC<OverviewPageProps> = ({
           <h1 className="display-title">{t("page.overview.title")}</h1>
           <p>{t("page.overview.subtitle")}</p>
         </div>
-        <Button onClick={startImport} disabled={working || authPending}>
-          {working ? <RotateCw size={15} className="spin" /> : <RotateCw size={15} />}{" "}
-          {authPending ? t("components.verifyLogin") : working ? t("overview.refreshing") : t("overview.refreshData")}
+        <Button data-state={refreshState} aria-busy={working} onClick={startImport} disabled={authPending || working}>
+          <RefreshIcon size={16} className={working ? "spin" : undefined} aria-hidden="true" />
+          {refreshFeedback ?? t("overview.refreshData")}
         </Button>
       </div>
+      <span className="sr-only" role="status">
+        {refreshFeedback}
+      </span>
       {loading && !data ? (
         <div className="empty-state">{t("overview.loading")}</div>
       ) : (
@@ -125,7 +167,7 @@ export const OverviewPage: React.FC<OverviewPageProps> = ({
             />
             <Metric
               label={t("overview.metric.riskIndex")}
-              value={`${data?.riskIndex ?? 0}`}
+              value={data?.riskIndex ?? 0}
               note={t("overview.metric.riskIndexNote")}
             />
             <Metric
@@ -184,8 +226,15 @@ export const OverviewPage: React.FC<OverviewPageProps> = ({
                     {job?.retryCount ? ` ${t("triage.historySeparator")} ${job.retryCount}` : ""}
                   </div>
                 </div>
-                <Button variant="outline" onClick={startImport} disabled={working || authPending}>
-                  <RotateCw size={14} /> {t("overview.preview")}
+                <Button
+                  data-state={refreshState}
+                  aria-busy={working}
+                  variant="outline"
+                  onClick={startImport}
+                  disabled={authPending || working}
+                >
+                  <RefreshIcon size={16} className={working ? "spin" : undefined} aria-hidden="true" />
+                  {refreshFeedback ?? t("overview.preview")}
                 </Button>
               </div>
               {job?.summary && (
@@ -215,7 +264,7 @@ export const OverviewPage: React.FC<OverviewPageProps> = ({
               {job?.status === "FAILED" && (
                 <div className="import-error">
                   <span className="cell-muted">{job.errorMessage ?? t("overview.importFailed")}</span>
-                  <Button variant="outline" size="sm" onClick={retry} disabled={authPending}>
+                  <Button variant="outline" size="sm" onClick={retry} disabled={working || authPending}>
                     {t("overview.retry")}
                   </Button>
                 </div>
@@ -230,15 +279,18 @@ export const OverviewPage: React.FC<OverviewPageProps> = ({
 
 interface MetricProps {
   label: string;
-  value: string | number;
+  value: number;
   note: string;
 }
 
 const Metric: React.FC<MetricProps> = ({ label, value, note }) => {
+  const { locale } = useI18n();
   return (
     <div className="metric">
       <div className="metric-label">{label}</div>
-      <div className="metric-value">{value}</div>
+      <div className="metric-value">
+        <NumberTicker value={value} locale={locale} />
+      </div>
       <div className="metric-note">{note}</div>
     </div>
   );
