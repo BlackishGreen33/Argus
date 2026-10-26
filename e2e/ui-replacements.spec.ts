@@ -16,7 +16,10 @@ test("animated CVSS keeps scores, zero and missing values distinct", async ({ pa
   });
   await page.goto("/");
   const gauges = page.locator(".cvss");
-  await expect(gauges).toHaveText(["—", "0", "10", "9.8"]);
+  await expect(gauges.nth(0)).toHaveText("—");
+  for (const [index, score] of ["0", "10", "9.8"].entries()) {
+    await expect(gauges.nth(index + 1).locator('.cvss-value [aria-hidden="true"]')).toHaveText(score);
+  }
   for (const [index, percent] of ["0", "0", "100", "98"].entries()) {
     await expect(gauges.nth(index)).toHaveAttribute("data-percent", percent);
     await expect(gauges.nth(index)).toHaveAccessibleName(/CVSS/);
@@ -39,7 +42,8 @@ test("official tabs and sheets retain keyboard, focus and mobile width", async (
     const listBounds = (await tabList.boundingBox())!;
     const panelBounds = (await drawer.getByRole("tabpanel", { name: "Overview", exact: true }).boundingBox())!;
     expect(panelBounds.y).toBeGreaterThanOrEqual(listBounds.y + listBounds.height);
-    expect(panelBounds.width).toBeGreaterThanOrEqual(Math.min(width, 430) - (width <= 840 ? 32 : 48) - 2);
+    // Motion transforms can return bounds a few floating-point units below the CSS width.
+    expect(panelBounds.width + 0.01).toBeGreaterThanOrEqual(Math.min(width, 430) - (width <= 840 ? 32 : 48) - 2);
     const overview = drawer.getByRole("tab", { name: "Overview", exact: true });
     await overview.focus();
     await overview.press("ArrowRight");

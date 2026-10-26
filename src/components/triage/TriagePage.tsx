@@ -232,7 +232,7 @@ export const TriagePage: React.FC<TriagePageProps> = ({
               <TableHead className="w-24">{t("triage.column.severity")}</TableHead>
               <TableHead className="w-44">{t("triage.column.cve")}</TableHead>
               <TableHead>{t("triage.column.title")}</TableHead>
-              <TableHead className="w-24">{t("triage.column.cvss")}</TableHead>
+              <TableHead className="w-32">{t("triage.column.cvss")}</TableHead>
               <TableHead className="w-32">{t("triage.column.updated")}</TableHead>
               <TableHead className="w-24">{t("triage.column.status")}</TableHead>
             </TableRow>

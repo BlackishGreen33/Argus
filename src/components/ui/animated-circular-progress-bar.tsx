@@ -2,6 +2,11 @@
 
 // Magic UI source; license retained in THIRD_PARTY_NOTICES.md.
 
+import { useInView, useReducedMotion } from "motion/react";
+import { useRef } from "react";
+
+import { NumberTicker } from "@/components/ui/number-ticker";
+import { useI18n } from "@/i18n";
 import { cn } from "@/utils/cn";
 
 interface AnimatedCircularProgressBarProps {
@@ -18,21 +23,27 @@ interface AnimatedCircularProgressBarProps {
 export function AnimatedCircularProgressBar({
   max = 100,
   min = 0,
-  value = 0,
+  value,
   gaugePrimaryColor,
   gaugeSecondaryColor,
   className,
   emptyValue,
   "aria-label": ariaLabel,
 }: AnimatedCircularProgressBarProps) {
+  const ref = useRef<HTMLDivElement>(null);
+  const inView = useInView(ref, { once: true });
+  const reduced = useReducedMotion();
+  const { locale } = useI18n();
   const circumference = 2 * Math.PI * 45;
   const percentPx = circumference / 100;
   const hasValue = typeof value === "number" && Number.isFinite(value);
   const score = hasValue ? Math.min(max, Math.max(min, value)) : min;
   const currentPercent = max > min ? Math.round(((score - min) / (max - min)) * 100) : 0;
+  const displayedPercent = reduced || inView ? currentPercent : 0;
 
   return (
     <div
+      ref={ref}
       role="img"
       aria-label={ariaLabel}
       data-value={hasValue ? score : undefined}
@@ -45,7 +56,7 @@ export function AnimatedCircularProgressBar({
           "--percent-to-px": `${percentPx}px`,
           "--gap-percent": "5",
           "--offset-factor": "0",
-          "--transition-length": "350ms",
+          "--transition-length": reduced ? "0ms" : "900ms",
           "--delay": "0s",
           "--percent-to-deg": "3.6deg",
           transform: "translateZ(0)",
@@ -53,7 +64,7 @@ export function AnimatedCircularProgressBar({
       }
     >
       <svg aria-hidden="true" fill="none" className="size-full" strokeWidth="2" viewBox="0 0 100 100">
-        {currentPercent <= 90 && currentPercent >= 0 && (
+        {displayedPercent <= 90 && (
           <circle
             cx="50"
             cy="50"
@@ -66,7 +77,7 @@ export function AnimatedCircularProgressBar({
             style={
               {
                 stroke: gaugeSecondaryColor,
-                "--stroke-percent": 90 - currentPercent,
+                "--stroke-percent": 90 - displayedPercent,
                 "--offset-factor-secondary": "calc(1 - var(--offset-factor))",
                 strokeDasharray: "calc(var(--stroke-percent) * var(--percent-to-px)) var(--circumference)",
                 transform:
@@ -89,8 +100,8 @@ export function AnimatedCircularProgressBar({
           style={
             {
               stroke: gaugePrimaryColor,
-              opacity: currentPercent > 0 ? 1 : 0,
-              "--stroke-percent": currentPercent,
+              opacity: displayedPercent > 0 ? 1 : 0,
+              "--stroke-percent": displayedPercent,
               strokeDasharray: "calc(var(--stroke-percent) * var(--percent-to-px)) var(--circumference)",
               transition:
                 "var(--transition-length) ease var(--delay),stroke var(--transition-length) ease var(--delay)",
@@ -102,7 +113,16 @@ export function AnimatedCircularProgressBar({
         />
       </svg>
       <span aria-hidden="true" className="cvss-value absolute inset-0 m-auto size-fit">
-        {hasValue ? score : emptyValue}
+        {hasValue ? (
+          <NumberTicker
+            value={score}
+            startValue={min}
+            decimalPlaces={Number.isInteger(score) ? 0 : 1}
+            locale={locale}
+          />
+        ) : (
+          emptyValue
+        )}
       </span>
     </div>
   );

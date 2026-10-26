@@ -14,7 +14,7 @@ test("guest can inspect Triage and use global search", async ({ page }) => {
   await expect(page.getByText("CVE-2026-9999")).toBeVisible();
   await expect(page.locator('[data-slot="checkbox"]')).toHaveCount(0);
   await expect(page.locator(".cvss").first()).toHaveAttribute("data-percent", "98");
-  await expect(page.locator(".cvss").first()).toHaveText("9.8");
+  await expect(page.locator(".cvss").first().locator('.cvss-value [aria-hidden="true"]')).toHaveText("9.8");
   const firstSeverityRow = page.locator(".argus-table-row").first();
   await expect(firstSeverityRow.locator(".severity-dot")).toHaveCSS("animation-name", "none");
   await firstSeverityRow.hover();

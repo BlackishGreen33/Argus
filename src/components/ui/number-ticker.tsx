@@ -48,6 +48,7 @@ export function NumberTicker({
 
     if (reduced) {
       springValue.jump(value);
+      if (ref.current) ref.current.textContent = formatter.format(value);
     } else if (isInView) {
       timer = setTimeout(() => {
         motionValue.set(direction === "down" ? startValue : value);
@@ -59,7 +60,7 @@ export function NumberTicker({
         clearTimeout(timer);
       }
     };
-  }, [motionValue, springValue, reduced, isInView, delay, value, direction, startValue]);
+  }, [motionValue, springValue, reduced, isInView, delay, value, direction, startValue, formatter]);
 
   useEffect(
     () =>
@@ -75,7 +76,7 @@ export function NumberTicker({
     <span data-slot="number-ticker" className={cn("inline-block tabular-nums", className)} {...props}>
       <span className="sr-only">{formatter.format(value)}</span>
       <span ref={ref} aria-hidden="true">
-        {formatter.format(value)}
+        {formatter.format(direction === "down" ? value : startValue)}
       </span>
     </span>
   );
