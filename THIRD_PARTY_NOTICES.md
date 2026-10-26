@@ -43,5 +43,5 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 ## Animate UI
 
-直接使用 `@animate-ui/react` 2.2.1 的 Tabs、Dialog（Sheet）和 React Aria Select primitives，没有复制实现一套动画底层。
+直接使用 `@animate-ui/react` 2.2.1 的 Tabs、Dialog（Sheet）、Accordion 和 React Aria Select primitives，没有复制实现一套动画底层。Accordion 官方文档：https://animate-ui.com/docs/primitives/radix/accordion 。
 授权为 MIT 加 Commons Clause，完整条款见 [官方 LICENSE.md](https://github.com/imskyleen/animate-ui/blob/main/LICENSE.md)，不能标注为纯 MIT。

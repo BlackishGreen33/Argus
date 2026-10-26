@@ -301,8 +301,8 @@ Argus/
 
 - `src/components/ui/delete-button.tsx` 和 `src/components/ui/notification-bell.tsx` 是仓库中的自有 UI 文件，保留其来源与授权链接；Rare UI 不作为运行时依赖安装。
 - [Rare UI](https://www.rareui.com/)：Delete Button 与 Notification Bell 的来源／授权参考。
-- Tabs、Sheet 和 Select 直接使用 `@animate-ui/react` 2.2.1 的 Radix／React Aria primitive，配合 Motion 14；不自行重写焦点、键盘和动画底层。
+- Tabs、Sheet、Select 和 [Accordion](https://animate-ui.com/docs/primitives/radix/accordion) 直接使用 `@animate-ui/react` 2.2.1 的 Radix／React Aria primitive，配合 Motion 14；不自行重写焦点、键盘和动画底层。
 - [Magic UI Number Ticker](https://magicui.design/docs/components/number-ticker) 与 [Animated Circular Progress Bar](https://magicui.design/docs/components/animated-circular-progress-bar)：官方 registry 源码的本地版本，保留 locale、真实 CVSS 值与 reduced motion。
 - [Cult UI Copy Button](https://www.cult-ui.com/docs/components/copy-button)：官方源码的本地版本，调整产品文案、失败反馈与 Dialog 内的复制焦点。
-- 导入刷新复用项目原有 Button，加载、成功和失败来自真实 job，保留防重复提交与读屏反馈；不再包含授权未明确的 Aceternity registry 改造文件。
+- 导入区以解析、核对、合并三个阶段展示真实 job，数量标明为来源记录，样本通过 Accordion 展开；Admin 核对后合并，Guest 只读。刷新复用项目原有 Button，保留防重复提交与读屏反馈；不再包含授权未明确的 Aceternity registry 改造文件。
 - Magic UI／Cult UI 的 MIT 版权及许可全文、Animate UI 的 MIT 加 Commons Clause 说明保留在 [第三方 UI 声明](./THIRD_PARTY_NOTICES.md)。

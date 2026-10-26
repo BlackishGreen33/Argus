@@ -12,7 +12,7 @@ Argus 是 Operate 型安全审查工作台。界面优先帮助使用者读证�
 - 浏览器请求统一经过 `src/client/http.ts`；TanStack Query 管理远端数据，Jotai 管理跨页 UI 状态，短生命 local state 留在组件内部。
 - 文案由 `src/i18n/index.tsx` 和 `src/i18n/server.ts` 提供；业务 TS／TSX 不直接写可见 UI 文案。
 - 主题 token 的机器来源是 `src/app/globals.scss`，三种主题由 `src/constants/theme.ts` 定义。本文说明语义，不复制一份可能漂移的 CSS。
-- UI 基础组件保留本地样式入口；Tabs、Sheet、Select 直接使用 Animate UI 的 Radix／React Aria primitive，Motion 版本遵循其 peer 要求。Magic UI、Cult UI 以官方 registry 源码引入，仅调整产品样式、文案与必要行为；来源和授权说明见 README 与第三方声明。
+- UI 基础组件保留本地样式入口；Tabs、Sheet、Select、Accordion 直接使用 Animate UI 的 Radix／React Aria primitive，Motion 版本遵循其 peer 要求。Magic UI、Cult UI 以官方 registry 源码引入，仅调整产品样式、文案与必要行为；来源和授权说明见 README 与第三方声明。
 
 ## 2. 设计原则
 
@@ -130,6 +130,14 @@ Argus 是 Operate 型安全审查工作台。界面优先帮助使用者读证�
 - `/api/auth/me` 的服务端结果是权限事实来源；localStorage 不能作为授权依据。
 - TanStack Query 负责 loading、error、invalidation；登录／登出后更新或失效 user query。
 - 自写模块保持明确 props 和单一责任；文件行数上限由 `eslint.config.mjs` 的 650 行规则执行，`src/components/ui/**` 不受该规则限制。
+
+### Overview 导入工作流
+
+- 导入区按“解析来源 → 核对预览 → 合并数据”展示三个真实阶段，使用有序列表与 `aria-current="step"`；步骤不可点击跳过。`PREVIEW_READY` 仅完成解析，`SUCCEEDED` 才表示三步完成；失败不高亮任何正在执行的阶段。
+- 标题旁展示真实 job 状态；CVE／Component 数量以 locale 格式独立展示，标明是来源记录数，不冒充新增量或差异量。无预览时不展示假计数。
+- 样本由 Animate UI Accordion 渐进展开，保留键盘、展开状态和 reduced motion；长 PURL 可换行并完整选择，不以灰色输入框外观承载只读样本。
+- Admin 在预览就绪时可合并；Guest 只读样本并显示登录提示。解析、合并期间禁用重复操作，已有运行中 job 恢复轮询；HTTP 错误与 FAILED 都不显示合并成功，保留重试入口。
+- 桌面内距 24px，手机 16px；手机步骤标记置于文字上方，重新预览可仅显示图标，但保留完整可访问名称与至少 44px 命中区。
 
 ## 7. 响应式契约
 
