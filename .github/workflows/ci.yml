@@ -109,6 +109,9 @@ jobs:
     name: Playwright E2E
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    env:
+      DEMO_MODE: "true"
+      ADMIN_EMAIL: admin@argus.local
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
