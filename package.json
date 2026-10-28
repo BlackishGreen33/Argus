@@ -19,7 +19,7 @@
     "test:e2e": "playwright test",
     "db:generate": "prisma generate",
     "db:migrate": "prisma migrate deploy",
-    "db:seed": "node --env-file-if-exists=.env.local --import tsx prisma/seed.ts",
+    "db:seed": "node --conditions=react-server --env-file-if-exists=.env.local --import tsx prisma/seed.ts",
     "check": "pnpm lint && pnpm format:check && pnpm typecheck && pnpm test"
   },
   "dependencies": {

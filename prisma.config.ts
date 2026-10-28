@@ -7,7 +7,7 @@ if (existsSync(".env.local")) loadEnvFile(".env.local");
 
 export default defineConfig({
   schema: "prisma/schema.prisma",
-  migrations: { path: "prisma/migrations", seed: "tsx prisma/seed.ts" },
+  migrations: { path: "prisma/migrations", seed: "pnpm db:seed" },
   datasource: {
     url:
       process.env.DIRECT_URL ?? process.env.DATABASE_URL ?? "postgresql://postgres:postgres@127.0.0.1:54322/postgres",
