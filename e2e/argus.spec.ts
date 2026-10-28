@@ -349,6 +349,7 @@ test("login feedback does not block the profile control", async ({ page }) => {
   await signInAsAdmin(page);
   const logout = page.getByLabel("退出 Admin");
   await expect(logout).toBeVisible();
+  await expect(page.getByText("登录成功", { exact: true })).toBeVisible();
   const selectedRows = page.locator('[data-slot="checkbox"]');
   await selectedRows.nth(1).click();
   await selectedRows.nth(2).click();

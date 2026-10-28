@@ -232,7 +232,7 @@ export const ArgusApp: React.FC<ArgusAppProps> = () => {
       });
       queryClient.setQueryData(argusQueryKeys.user(), { data: response.data });
       ui.setLoginOpen(false);
-      notify(t("auth.login.demoSuccess"));
+      notify(t("auth.login.success"));
       await loadData();
     } catch (requestError) {
       notify(requestError instanceof Error ? requestError.message : t("auth.login.error"));

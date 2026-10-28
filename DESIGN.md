@@ -118,6 +118,7 @@ Argus 是 Operate 型安全审查工作台。界面优先帮助使用者读证�
 - Sheet、Dialog 必须有 Title 和 Description；视觉隐藏也要保留语义。
 - 打开、关闭和遮罩动画支持 `prefers-reduced-motion`；focus trap、Esc 和关闭后焦点回收必须有效。
 - 登录 Dialog 只展示一个“登录”标题，密码提供显示／隐藏控制；未配置的社交登录整段不渲染。
+- 登录成功提示使用“登录成功”，不把真实 Supabase 会话标成 Demo；身份及权限仍由服务端返回的用户信息决定。
 - Command 在视窗中心定位，输入框不叠加额外橙色 outline。
 - 通知面板的“关闭面板”只关闭当前 Sheet；如果没有静音行为，不得写“关闭通知”。
 
