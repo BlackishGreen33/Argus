@@ -11,7 +11,7 @@
 | API Component    | 列表、搜索、新增、修改、删除、PURL 边界                              | API regression 或 curl                                    | 字段校验、权限、删除审计               |
 | API Auth         | providers、me、Demo login、Email login、OAuth callback、logout       | 浏览器或 route 测试                                       | Guest／Admin 状态、cookie、失败反馈    |
 | Import           | 创建、preview、stage rows、merge、retry、sourceMissing               | API workflow + parser tests                               | checksum、差异样本、事务结果和失败 job |
-| Database         | schema、migration、seed、重启后读取                                  | `pnpm prisma validate`、`pnpm db:migrate`、`pnpm db:seed` | 数据库版本、命令输出和读取结果         |
+| Database         | schema、migration、seed、真实 Auth、CRUD、重启持久化与审计           | [README 隔离验收](../README.md#隔离数据库验收)、`pnpm exec tsx scripts/verify-database.ts` | HTTP、直接 SQL、两次重启和截图 |
 | Cache／Queue     | Redis 缺失回退、QStash 缺失同步 worker、签名配置边界                 | 环境变量矩阵 + API workflow                               | 配置组合、回退结果和错误日志           |
 | UI               | 双搜索、筛选、详情 Sheet、状态修改、Components、Overview、通知、登录 | `pnpm test:e2e` + Chrome 走查                             | 路线、视口、console、网络和截图        |
 | UI responsive    | 桌面、平板、手机、极窄屏、无水平溢出                                 | Playwright viewport + 浏览器                              | 实际视口、浏览器版本和证据             |
@@ -105,3 +105,29 @@ env PLAYWRIGHT_BASE_URL=http://localhost:3100 pnpm test:e2e
 - 内建浏览器连接持续超时，因此没有完成正式站的交互式视觉实拍；部署、域名和 CSS 证据不能替代该项。正式环境仅做只读检查，没有预览、合并或删除数据。
 
 文件影响判断：更新 [DESIGN.md](../DESIGN.md) 的工作流、CVSS 与动效契约，[README](../README.md) 与 [第三方声明](../THIRD_PARTY_NOTICES.md) 的 Accordion 来源，以及本矩阵、[发布前检查表](./release-checklist.md) 的验证入口。未新增依赖，API、服务端权限、schema、来源 parser、migration、部署配置均未变化，因此不修改其契约，也不执行正式数据库迁移。
+
+## 2026-10-28：提交前数据库验收与 CI E2E 修复
+
+- 基准：`f814aff9e5032e31cfc5587613eadda1bd5291f1` 加本次未提交工作树。环境为 macOS、Node.js 24.15.0、pnpm CLI 11.25.0；项目与 CI 声明仍为 pnpm 12.6.0。本机结果不代替 GitHub Actions 的 head-specific 结果。
+- 数据库验收关闭 Demo、Redis 和 QStash，使用新建的本地 Supabase CLI 2.122.0 隔离堆栈，PostgreSQL 17.11，独立业务库 `argus_verification`；通过 publishable key 注册临时账号，再从页面使用真实 Supabase Auth 密码登录。未使用 service role、正式项目或原有账号，未改写 `.env.local`。
+- 实跑入口为 `scripts/verify-database.ts`，浏览器 Chromium 153.0.8010.12、1440×1000，应用端口 3111。页面 mutation 没有 route mock；每次写入后直接 SQL 查核。脚本只接受指定名称的本地可丢弃数据库，并仅关闭自己启动的应用进程。
+- 数据库证据位于被 Git 忽略的 `output/database-verification/2026-10-27T19-12-59-934Z/`；目录名使用 UTC，实际验收日为 Asia/Shanghai 的 2026-10-28。`report.json` 保留 HTTP method／path／请求正文／状态／响应、SQL 与查询结果；同目录包含浏览器截图、服务日志及 migration／seed 日志，不包含密码、Cookie 或令牌。
+
+| 检查 | 实际结果 |
+| --- | --- |
+| `pnpm db:generate`、`pnpm prisma validate` | 通过；3 个 migration 在空业务库实际执行成功 |
+| migration／seed 可重复性 | `pnpm db:migrate`、`pnpm db:seed` 后，再执行 `pnpm db:migrate`、`pnpm prisma db seed`；两轮均为 1000 CVE、398 Component、3576 候选关联、3 个已完成 migration，没有重复记录 |
+| seed 启动错误的复现与修复 | 原命令因 `server-only` 默认导出抛错而失败；为 Node seed 入口指定 `--conditions=react-server`，Prisma CLI seed 复用该命令。两种入口均实跑通过，保留原有服务端边界 |
+| 权限与输入 | Guest 修改 CVE、创建 Component 均为 403；真实 Admin 登录成功；Demo 登录入口为 403；无效 CVSS 与空组件名称为 400。直接 SQL 确认被拒绝的操作没有写入数据 |
+| CVE 页面查询／修改／删除 | 从来源 SQL 选择 `CVE-2026-45104`；页面查询后编辑标题，PATCH 200 且 SQL 一致；确认删除后 DELETE 200，SQL 无该行 |
+| Maven Component 完整 CRUD | 页面创建 `pkg:maven/org.argus/argus-verification-1793128380205@1.0.0` 返回 201；查询、改名 PATCH 200、确认删除 DELETE 200，逐项 SQL 核对 |
+| 两次进程重启 | 第一次重启后，页面仍显示修改后的 CVE 标题与组件名称，Admin 会话恢复；第二次重启后，CVE GET 404、组件查询为空，最终为 999 CVE／398 Component，删除没有被内存重置撤销 |
+| 审计保留 | 删除后仍有 `CVE_UPDATED`、`CVE_DELETED`、`COMPONENT_CREATED`、`COMPONENT_UPDATED`、`COMPONENT_DELETED` 五类事件，操作者与目标一致 |
+| CI E2E 根因与修复 | 未设置 Demo 的隔离登录请求为 401，显式 `DEMO_MODE=true` 后为 200 且能恢复 Admin；E2E job 增加 Demo 与管理员邮箱环境变量，不修改鉴权逻辑、不延长测试超时、不跳过测试 |
+| 登录成功文案 | 真 Auth 验收发现成功提示仍写 Demo；先用新增断言复现失败，再将共用提示改为“登录成功”并同步三种语言。真数据库脚本与原有 Demo 登录 E2E 都断言新提示，身份仍取自服务端 |
+| `pnpm check` | lint、format:check、typecheck 与 3 个文件／8 项 unit 全部通过；Vitest 保留原有未来 native config loader 兼容提示 |
+| Demo production build／E2E | 构建通过；production server 端口 3110 下使用与 CI 相同的 `--global-timeout=120000 --reporter=line`，36 项通过。此项只证明 Demo 交互，不充当真实数据库证据 |
+
+重跑前先按 README 重新 seed 隔离业务库；脚本会删除一条来源 CVE，不可对日常开发或正式数据库执行。真数据库验收不包含托管 Supabase、OAuth、外部 Redis／QStash、生产导入事务或正式部署；这些仍需各自的目标环境证据。
+
+文件影响判断：同步 README 的验收命令与 seed 边界、本矩阵和发布前检查表，以及 DESIGN 的登录成功文案；已检查 AGENTS 路由与不变量。API、权限、schema、migration 与长期架构取舍未变，因此不修改相应契约。修复尚未提交或推送，不能将本机通过报告为远端 CI 已通过。

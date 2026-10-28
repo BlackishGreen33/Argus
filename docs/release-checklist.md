@@ -19,6 +19,7 @@
 - [ ] `pnpm test`
 - [ ] `pnpm build`
 - [ ] `pnpm test:e2e`
+- [ ] CI 的 Demo E2E 明确设置 `DEMO_MODE=true` 和测试管理员邮箱；未把 Demo 通过当作数据库验收
 - [ ] Prisma schema、migration 和 seed 已按本次变更执行必要检查
 - [ ] CI 的每个相关 job 都对应本次 commit，失败项已有处理决定
 
@@ -35,6 +36,7 @@
 - [ ] 来源 SQL、parser、checksum、preview、stage rows、merge 和 `sourceMissing` 的受影响路径已测试
 - [ ] 合并使用 transaction，失败时没有半合并数据
 - [ ] triage 状态和 AuditEvent 的保留语义已验证
+- [ ] 需要数据库交付证据时，按 [README 隔离验收](../README.md#隔离数据库验收) 运行 `scripts/verify-database.ts`；保留 HTTP、SQL、两次进程重启和审计证据，明确与托管生产环境的区别
 - [ ] QStash 配置、签名 key 和公网 `QSTASH_URL` 已按实际部署决定；没有配置时确认同步 fallback
 - [ ] Redis 缺失或失败不会阻塞页面读取
 

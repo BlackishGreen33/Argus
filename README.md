@@ -241,6 +241,31 @@ pnpm build
 
 完整安装和数据库流程见上文。发布前还要执行 `pnpm prisma validate`、必要的 migration／seed，以及浏览器走查；覆盖场景和证据字段见 [测试矩阵](./docs/test-matrix.md) 与 [发布前检查表](./docs/release-checklist.md)。`pnpm check` 只包含 lint、format、typecheck 和 unit tests，不等于完整发布 gate。
 
+CI 的 Playwright job 显式使用 `DEMO_MODE=true` 和 `ADMIN_EMAIL=admin@argus.local`，验证无外部服务的交互。它不代表真实数据库验收。`pnpm db:seed` 使用 Node 的 `react-server` condition 加载服务端 Prisma 模块；`pnpm prisma db seed` 复用同一入口，不移除 `server-only` 边界。
+
+### 隔离数据库验收
+
+在独立的本地 Supabase 堆栈中创建空数据库 `argus_verification`，启用 Email 登录并关闭邮件确认。只使用该堆栈的 publishable key，不使用正式账号或 service role。将下列测试变量指向它；连接字符串中的密码仅保存在当前终端环境中。
+
+```bash
+export ARGUS_TEST_DATABASE_URL='postgresql://USER:PASSWORD@127.0.0.1:PORT/argus_verification'
+export ARGUS_TEST_SUPABASE_URL='http://127.0.0.1:API_PORT'
+export ARGUS_TEST_SUPABASE_PUBLISHABLE_KEY='sb_publishable_...'
+export DATABASE_URL="$ARGUS_TEST_DATABASE_URL" DIRECT_URL="$ARGUS_TEST_DATABASE_URL"
+pnpm db:generate
+pnpm prisma validate
+pnpm db:migrate
+pnpm db:seed
+pnpm db:migrate
+pnpm prisma db seed
+pnpm exec playwright install chromium
+pnpm exec tsx scripts/verify-database.ts
+```
+
+脚本只接受 localhost／127.0.0.1 和指定数据库名，在端口 3111 启停自己的 Next 服务，不改写 `.env.local`。它注册临时 Auth 账号，通过真实页面执行 CVE 查询／修改／删除与 Maven Component CRUD，以 HTTP 响应和直接 SQL 核对写入，再重启两次验证持久化及审计记录。HTTP、SQL、截图和日志保存在 `output/database-verification/<run-id>/`，不保存密码、Cookie 或令牌。
+
+**这是破坏性测试，只能使用可丢弃数据库。** 验收会删除一条来源 CVE；临时组件创建后删除，临时 Auth 账号留在隔离堆栈中。重跑前先重新 seed，验收结束后可销毁该测试堆栈。不要将这些测试变量指向日常开发或正式环境。
+
 ## 部署到 Vercel
 
 部署前确认：
@@ -270,6 +295,7 @@ Argus/
 ├── data/source/                # SQL 来源文件
 ├── tests/                      # Vitest
 ├── e2e/                        # Playwright
+├── scripts/verify-database.ts  # 独立本地数据库的 UI／HTTP／SQL 验收
 ├── .github/workflows/ci.yml   # CI jobs
 └── .env.example                # 环境变量模板
 ```
